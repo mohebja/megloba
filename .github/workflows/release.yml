@@ -1,0 +1,83 @@
+name: Global SMS Production Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Build & Package Production Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Verify No Dummy Configuration or Hardcoded Secrets
+        run: |
+          echo "Verifying absence of dummy google-services configuration..."
+          if grep -rnI "AIzaSyDummy" .; then
+            echo "ERROR: Dummy API key / configuration detected in workspace!"
+            exit 1
+          fi
+          echo "Configuration verification passed."
+
+      - name: Prepare Release Signing Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "ERROR: Production release signing secrets (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD) must all be configured in GitHub Secrets."
+            exit 1
+          fi
+          mkdir -p /tmp/keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/keystore/release.keystore
+          echo "Release keystore decoded successfully."
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Run Android Lint
+        run: ./gradlew lint
+
+      - name: Build Release APK & AAB
+        env:
+          KEYSTORE_PATH: /tmp/keystore/release.keystore
+          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew :app:assembleRelease :app:bundleRelease
+
+      - name: Generate Checksums
+        run: |
+          mkdir -p release_artifacts
+          find app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -exec cp {} release_artifacts/ \;
+          cd release_artifacts
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Cleanup Decoded Keystore
+        if: always()
+        run: |
+          rm -rf /tmp/keystore
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GlobalSMS-v8.0.0-Production-Artifacts
+          path: release_artifacts/*

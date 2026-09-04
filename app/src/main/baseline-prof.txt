@@ -1,0 +1,10 @@
+# Baseline Profiles for High Performance SMS App
+HSPLcom/global/sms/GlobalSmsApp;-><init>()V
+HSPLcom/global/sms/GlobalSmsApp;->onCreate()V
+HSPLcom/global/sms/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/global/sms/data/db/GlobalSmsDatabase;->getInstance(Landroid/content/Context;)Lcom/global/sms/data/db/GlobalSmsDatabase;
+HSPLcom/global/sms/data/dao/MessageDao;->getMessagesForThreadPagingSource(J)Landroidx/paging/PagingSource;
+HSPLcom/global/sms/data/dao/ConversationDao;->getAllConversationsPagingSource()Landroidx/paging/PagingSource;
+HSPLcom/global/sms/ui/screens/ConversationsScreenKt;->ConversationsScreen(Lcom/global/sms/ui/viewmodels/GlobalSmsViewModel;)V
+HSPLcom/global/sms/ui/screens/MessageThreadScreenKt;->MessageThreadScreen(JLcom/global/sms/ui/viewmodels/GlobalSmsViewModel;)V
+HSPLcom/global/sms/ui/screens/BankDashboardScreenKt;->BankDashboardScreen(Lcom/global/sms/ui/viewmodels/GlobalSmsViewModel;)V

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Glowing Outer Security Shield -->
+    <path
+        android:pathData="M54,18 C68,22 80,21 86,23 C87,46 81,69 54,88 C27,69 21,46 22,23 C28,21 40,22 54,18 Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FF1976D2">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="18"
+                android:endX="54"
+                android:endY="88"
+                android:type="linear">
+                <item android:color="#201A73E8" android:offset="0.0" />
+                <item android:color="#350D47A1" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Metallic Inner Shield Accent -->
+    <path
+        android:pathData="M54,23 C65,26 75,25 80,27 C81,45 76,64 54,81 C32,64 27,45 28,27 C33,25 43,26 54,23 Z"
+        android:strokeWidth="1.2"
+        android:strokeColor="#99E2E8F0"
+        android:fillColor="#00000000" />
+
+    <!-- SMS Chat Bubble Center piece -->
+    <path
+        android:pathData="M38,36 C34.7,36 32,38.7 32,42 L32,56 C32,59.3 34.7,62 38,62 L44,62 L44,67 L51,62 L70,62 C73.3,62 76,59.3 76,56 L76,42 C76,38.7 73.3,36 70,36 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FF64B5F6">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="32"
+                android:startY="36"
+                android:endX="76"
+                android:endY="62"
+                android:type="linear">
+                <item android:color="#DD102A43" android:offset="0.0" />
+                <item android:color="#EE1976D2" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- SMS Message Lines inside Bubble -->
+    <path
+        android:pathData="M40,43 L62,43 M40,48 L56,48 M40,53 L66,53"
+        android:strokeWidth="2.2"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+
+    <!-- Banking Intelligence Green Checkmark Badge -->
+    <path
+        android:pathData="M66,66 A9,9 0 1,1 66,65.99 Z"
+        android:fillColor="#FF00C853" />
+    <path
+        android:pathData="M62,66 L65,69 L70,63"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- AI Purple Neural Nodes & Connections -->
+    <path
+        android:pathData="M32,32 L26,26 M76,32 L82,26 M54,18 L54,12"
+        android:strokeWidth="1.2"
+        android:strokeColor="#A855F7" />
+    <path
+        android:pathData="M26,26 A2.5,2.5 0 1,1 26,25.99 Z"
+        android:fillColor="#FFA855F7" />
+    <path
+        android:pathData="M82,26 A2.5,2.5 0 1,1 82,25.99 Z"
+        android:fillColor="#FFA855F7" />
+    <path
+        android:pathData="M54,12 A2.5,2.5 0 1,1 54,11.99 Z"
+        android:fillColor="#FFA855F7" />
+
+</vector>

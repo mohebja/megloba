@@ -1,0 +1,6 @@
+{
+  "name": "Global SMS",
+  "description": "Production-ready, secure, scalable Android SMS application with Persian RTL support, private vault, spam & banking scanner, scheduled messages, and dual SIM management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
