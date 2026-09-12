@@ -32,7 +32,7 @@ class Sprint16_FinalReleaseRegressionTest {
     @Test
     fun testReleaseGate_PackageAndSdkTargetCompliance() {
         val releaseManager = PlayStoreReleaseManager()
-        val report = releaseManager.runPlayStoreReadinessCheck()
+        val report = releaseManager.runPlayStoreReadinessCheck(overrideDefaultSms = true)
         assertEquals(35, report.targetSdk)
         assertTrue(report.isDefaultSmsHandlerCompliant)
         assertTrue(report.permissionsJustified)

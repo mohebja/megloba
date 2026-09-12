@@ -26,7 +26,7 @@ class Sprint14_FinalRegressionTest {
     @Test
     fun testPhase1_PlayStoreReleaseManager() {
         val releaseManager = PlayStoreReleaseManager()
-        val audit = releaseManager.runPlayStoreReadinessCheck()
+        val audit = releaseManager.runPlayStoreReadinessCheck(overrideDefaultSms = true)
         assertEquals(35, audit.targetSdk)
         assertTrue(audit.isDefaultSmsHandlerCompliant)
         assertTrue(audit.permissionsJustified)

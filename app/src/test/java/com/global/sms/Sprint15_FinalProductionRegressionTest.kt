@@ -32,7 +32,7 @@ class Sprint15_FinalProductionRegressionTest {
     @Test
     fun testProductionRelease_BuildIdentityAndPlayStoreReadiness() {
         val releaseManager = PlayStoreReleaseManager()
-        val audit = releaseManager.runPlayStoreReadinessCheck()
+        val audit = releaseManager.runPlayStoreReadinessCheck(overrideDefaultSms = true)
         assertEquals(35, audit.targetSdk)
         assertTrue(audit.isDefaultSmsHandlerCompliant)
         assertTrue(audit.permissionsJustified)

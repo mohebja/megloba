@@ -108,6 +108,60 @@ fun EnterpriseBackupScreen(
                     }
                 }
 
+                // Auto-Backup Scheduling Section
+                var isAutoBackupOn by remember { mutableStateOf(AutoBackupManager.isAutoBackupEnabled(context)) }
+                val lastAutoBackupTime = remember { AutoBackupManager.getLastBackupTimestamp(context) }
+
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = "زمان‌بندی خودکار پشتیبان‌گیری",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (isAutoBackupOn)
+                                        "پشتیبان‌گیری دوره‌ای رمزنگاری‌شده در پس‌زمینه با WorkManager فعال است (هر ۲۴ ساعت)"
+                                    else
+                                        "پشتیبان‌گیری خودکار غیرفعال است (برای امنیت بیشتر می‌توانید آن را فعال کنید)",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isAutoBackupOn,
+                                onCheckedChange = { checked ->
+                                    isAutoBackupOn = checked
+                                    AutoBackupManager.setAutoBackupEnabled(context, checked)
+                                    val msg = if (checked) "پشتیبان‌گیری خودکار روزانه فعال و زمان‌بندی شد" else "پشتیبان‌گیری خودکار لغو گردید"
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.testTag("auto_backup_schedule_switch")
+                            )
+                        }
+                        if (lastAutoBackupTime > 0L) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val dateStr = java.text.SimpleDateFormat("yyyy/MM/dd HH:mm", java.util.Locale.getDefault())
+                                .format(java.util.Date(lastAutoBackupTime))
+                            Text(
+                                text = "آخرین زمان پشتیبان خودکار: $dateStr",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                }
+
                 // Backup Creation Section
                 Card(
                     shape = RoundedCornerShape(12.dp),
