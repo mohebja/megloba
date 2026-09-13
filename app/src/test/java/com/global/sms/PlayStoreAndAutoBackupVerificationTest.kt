@@ -94,4 +94,48 @@ class PlayStoreAndAutoBackupVerificationTest {
         // Calling init should not crash
         AutoBackupManager.init(context)
     }
+
+    @Test
+    fun testAutoBackup_hardwareKeyEncryptionAndRestoration() {
+        val masterKey1 = com.global.sms.security.keystore.KeyStoreManager.getOrCreateAutoBackupMasterKeyBytes(context)
+        assertNotNull(masterKey1)
+        assertEquals(32, masterKey1.size)
+
+        // Must be persistent across invocations
+        val masterKey2 = com.global.sms.security.keystore.KeyStoreManager.getOrCreateAutoBackupMasterKeyBytes(context)
+        assertArrayEquals(masterKey1, masterKey2)
+
+        val sampleModel = com.global.sms.security.backup.EnterpriseBackupModel(
+            version = 1,
+            timestamp = System.currentTimeMillis(),
+            messages = listOf(
+                com.global.sms.security.backup.BackupMessageItem(
+                    id = 101L,
+                    threadId = 1L,
+                    address = "+1987654321",
+                    body = "Secret auto-backup message payload",
+                    date = System.currentTimeMillis(),
+                    type = 1,
+                    read = 1,
+                    status = -1
+                )
+            )
+        )
+
+        val backupFile = com.global.sms.security.backup.EncryptedBackupManager.createEncryptedBackupWithMasterKey(
+            context = context,
+            model = sampleModel,
+            masterKey = masterKey1
+        )
+        assertTrue(backupFile.exists())
+        assertTrue(backupFile.length() > 0)
+
+        val restoredModel = com.global.sms.security.backup.EncryptedBackupManager.restoreEncryptedBackupWithMasterKey(
+            backupFile = backupFile,
+            masterKey = masterKey1
+        )
+        assertEquals(1, restoredModel.messages.size)
+        assertEquals("Secret auto-backup message payload", restoredModel.messages[0].body)
+        assertEquals("+1987654321", restoredModel.messages[0].address)
+    }
 }

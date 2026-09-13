@@ -1,5 +1,6 @@
 package com.global.sms.security.keystore
 
+import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -21,6 +22,7 @@ object KeyStoreManager {
 
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "GlobalSmsMasterKey_AES256"
+    const val AUTO_BACKUP_KEY_ALIAS = "AutoBackupMasterKey_AES256"
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val GCM_TAG_LENGTH = 128
     private const val IV_SIZE = 12
@@ -76,16 +78,16 @@ object KeyStoreManager {
     }
 
     @Synchronized
-    fun getOrCreateMasterKey(): SecretKey {
+    fun getOrCreateKey(alias: String = KEY_ALIAS): SecretKey {
         val ks = loadKeyStore()
-        if (!ks.containsAlias(KEY_ALIAS)) {
+        if (!ks.containsAlias(alias)) {
             try {
                 val keyGenerator = KeyGenerator.getInstance(
                     KeyProperties.KEY_ALGORITHM_AES,
                     ANDROID_KEYSTORE
                 )
                 val builder = KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
+                    alias,
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                 )
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -97,7 +99,7 @@ object KeyStoreManager {
             } catch (e: Exception) {
                 if (!isTestEnvironment()) {
                     throw SecurityException(
-                        "Failed to generate hardware-backed AES key via AndroidKeyStore in production environment.",
+                        "Failed to generate hardware-backed AES key via AndroidKeyStore in production environment for alias: $alias",
                         e
                     )
                 }
@@ -106,7 +108,7 @@ object KeyStoreManager {
                 val secretKey = keyGen.generateKey()
                 val entry = KeyStore.SecretKeyEntry(secretKey)
                 val protParam = KeyStore.PasswordProtection(KEYSTORE_PASS)
-                ks.setEntry(KEY_ALIAS, entry, protParam)
+                ks.setEntry(alias, entry, protParam)
 
                 val file = getFallbackKeystoreFile()
                 FileOutputStream(file).use { fos ->
@@ -116,27 +118,28 @@ object KeyStoreManager {
         }
 
         return try {
-            val entry = ks.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
-            entry?.secretKey ?: throw IllegalStateException("KeyStore missing master key entry")
+            val entry = ks.getEntry(alias, null) as? KeyStore.SecretKeyEntry
+            entry?.secretKey ?: throw IllegalStateException("KeyStore missing key entry for alias: $alias")
         } catch (e: Exception) {
             if (!isTestEnvironment()) {
-                throw SecurityException("Failed to access master key from AndroidKeyStore in production environment.", e)
+                throw SecurityException("Failed to access key from AndroidKeyStore for alias: $alias", e)
             }
             val protParam = KeyStore.PasswordProtection(KEYSTORE_PASS)
-            val entry = ks.getEntry(KEY_ALIAS, protParam) as? KeyStore.SecretKeyEntry
-            entry?.secretKey ?: throw IllegalStateException("Fallback KeyStore missing master key entry", e)
+            val entry = ks.getEntry(alias, protParam) as? KeyStore.SecretKeyEntry
+            entry?.secretKey ?: throw IllegalStateException("Fallback KeyStore missing key entry for alias: $alias", e)
         }
     }
 
+    @Synchronized
+    fun getOrCreateMasterKey(): SecretKey = getOrCreateKey(KEY_ALIAS)
+
     /**
-     * Encrypts plain text using Hardware-Backed AES-256-GCM.
-     * Returns Base64 encoded string containing [12 bytes IV + CipherText].
+     * Encrypts plain text using a specified SecretKey with AES-256-GCM.
      */
-    fun encrypt(plainText: String): String {
+    fun encryptWithKey(plainText: String, secretKey: SecretKey): String {
         return try {
-            val masterKey = getOrCreateMasterKey()
             val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, masterKey)
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
 
             val iv = cipher.iv // 12 bytes
             val encryptedBytes = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
@@ -152,9 +155,9 @@ object KeyStoreManager {
     }
 
     /**
-     * Decrypts Base64 string containing [12 bytes IV + CipherText] using Hardware-Backed AES-256-GCM.
+     * Decrypts Base64 string using a specified SecretKey with AES-256-GCM.
      */
-    fun decrypt(encryptedBase64: String): String {
+    fun decryptWithKey(encryptedBase64: String, secretKey: SecretKey): String {
         return try {
             val combined = Base64.decode(encryptedBase64, Base64.NO_WRAP)
             if (combined.size <= IV_SIZE) {
@@ -166,15 +169,57 @@ object KeyStoreManager {
             System.arraycopy(combined, 0, iv, 0, IV_SIZE)
             System.arraycopy(combined, IV_SIZE, cipherText, 0, cipherText.size)
 
-            val masterKey = getOrCreateMasterKey()
             val cipher = Cipher.getInstance(TRANSFORMATION)
             val spec = GCMParameterSpec(GCM_TAG_LENGTH, iv)
-            cipher.init(Cipher.DECRYPT_MODE, masterKey, spec)
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
 
             val decryptedBytes = cipher.doFinal(cipherText)
             String(decryptedBytes, Charsets.UTF_8)
         } catch (e: Exception) {
             throw SecurityException("KeyStore hardware decryption failed", e)
         }
+    }
+
+    /**
+     * Encrypts plain text using Hardware-Backed AES-256-GCM (Master Key).
+     */
+    fun encrypt(plainText: String): String = encryptWithKey(plainText, getOrCreateMasterKey())
+
+    /**
+     * Decrypts Base64 string using Hardware-Backed AES-256-GCM (Master Key).
+     */
+    fun decrypt(encryptedBase64: String): String = decryptWithKey(encryptedBase64, getOrCreateMasterKey())
+
+    /**
+     * Retrieves or generates a dedicated 256-bit hardware-encrypted master key for automated backups.
+     * The raw 32 bytes are protected at rest via KeyStore hardware encryption (AutoBackupMasterKey_AES256).
+     */
+    @Synchronized
+    fun getOrCreateAutoBackupMasterKeyBytes(context: Context): ByteArray {
+        val keyFile = File(context.filesDir, "security/autobackup_key.enc")
+        val autoBackupKey = getOrCreateKey(AUTO_BACKUP_KEY_ALIAS)
+        if (keyFile.exists() && keyFile.length() > 0) {
+            val encryptedBase64 = keyFile.readText(Charsets.UTF_8).trim()
+            val decryptedHex = decryptWithKey(encryptedBase64, autoBackupKey)
+            return hexToBytes(decryptedHex)
+        }
+
+        val parentDir = keyFile.parentFile
+        if (parentDir != null && !parentDir.exists()) parentDir.mkdirs()
+
+        val rawBytes = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+        val hex = rawBytes.joinToString("") { "%02x".format(it) }
+        val encryptedBase64 = encryptWithKey(hex, autoBackupKey)
+        keyFile.writeText(encryptedBase64, Charsets.UTF_8)
+        return rawBytes
+    }
+
+    private fun hexToBytes(hex: String): ByteArray {
+        val result = ByteArray(hex.length / 2)
+        for (i in result.indices) {
+            val index = i * 2
+            result[i] = hex.substring(index, index + 2).toInt(16).toByte()
+        }
+        return result
     }
 }

@@ -131,9 +131,9 @@ fun EnterpriseBackupScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = if (isAutoBackupOn)
-                                        "پشتیبان‌گیری دوره‌ای رمزنگاری‌شده در پس‌زمینه با WorkManager فعال است (هر ۲۴ ساعت)"
+                                        "پشتیبان‌گیری دوره‌ای با کلید سخت‌افزاری Android KeyStore فعال است (فقط روی همین دستگاه قابل بازیابی است)"
                                     else
-                                        "پشتیبان‌گیری خودکار غیرفعال است (برای امنیت بیشتر می‌توانید آن را فعال کنید)",
+                                        "پشتیبان‌گیری خودکار سخت‌افزاری غیرفعال است (برای امنیت بالا با کلید سخت‌افزاری دستگاه فعال کنید)",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
