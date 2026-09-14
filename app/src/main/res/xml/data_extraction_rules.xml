@@ -5,15 +5,16 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Exclude hardware-backed keys and keystore-dependent local data from cloud backups -->
+        <exclude domain="file" path="security" />
+        <exclude domain="file" path="backups" />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Exclude non-transferable Keystore-bound keys and device-specific backups -->
+        <exclude domain="file" path="security" />
+        <exclude domain="file" path="backups" />
+        <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>
