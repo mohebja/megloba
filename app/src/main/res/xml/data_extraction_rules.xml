@@ -1,18 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <!-- Exclude hardware-backed keys and keystore-dependent local data from cloud backups -->
         <exclude domain="file" path="security" />
         <exclude domain="file" path="backups" />
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
     </cloud-backup>
     <device-transfer>
-        <!-- Exclude non-transferable Keystore-bound keys and device-specific backups -->
         <exclude domain="file" path="security" />
         <exclude domain="file" path="backups" />
         <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
