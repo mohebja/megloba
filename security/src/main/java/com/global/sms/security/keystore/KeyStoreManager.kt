@@ -223,3 +223,33 @@ object KeyStoreManager {
         return result
     }
 }
+    const val AUTO_BACKUP_KEY_ALIAS = "AutoBackupMasterKey_AES256"
+
+    @Synchronized
+    fun getOrCreateAutoBackupMasterKeyBytes(context: Context): ByteArray {
+        val keyFile = File(context.filesDir, "security/autobackup_key.enc")
+        val autoBackupKey = getOrCreateKey(AUTO_BACKUP_KEY_ALIAS)
+        if (keyFile.exists() && keyFile.length() > 0) {
+            val encryptedBase64 = keyFile.readText(Charsets.UTF_8).trim()
+            val decryptedHex = decryptWithKey(encryptedBase64, autoBackupKey)
+            return hexToBytes(decryptedHex)
+        }
+
+        val parentDir = keyFile.parentFile
+        if (parentDir != null && !parentDir.exists()) parentDir.mkdirs()
+
+        val rawBytes = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+        val hex = rawBytes.joinToString("") { "%02x".format(it) }
+        val encryptedBase64 = encryptWithKey(hex, autoBackupKey)
+        keyFile.writeText(encryptedBase64, Charsets.UTF_8)
+        return rawBytes
+    }
+
+    private fun hexToBytes(hex: String): ByteArray {
+        val result = ByteArray(hex.length / 2)
+        for (i in result.indices) {
+            val index = i * 2
+            result[i] = hex.substring(index, index + 2).toInt(16).toByte()
+        }
+        return result
+    }
