@@ -20,6 +20,8 @@ class EnterpriseViewModel(application: Application) : AndroidViewModel(applicati
     private val organizationDao = db.organizationDao()
     private val departmentDao = db.departmentDao()
     private val employeeDao = db.employeeDao()
+    private val conversationDao = db.conversationDao()
+    private val messageDao = db.messageDao()
 
     val enterpriseProfile: StateFlow<EnterpriseProfileEntity> = profileDao.getProfileFlow()
         .map { it ?: EnterpriseProfileEntity() }
@@ -30,11 +32,11 @@ class EnterpriseViewModel(application: Application) : AndroidViewModel(applicati
         )
 
     val organization: StateFlow<OrganizationEntity> = organizationDao.getOrganizationFlow()
-        .map { it ?: OrganizationEntity(id = "default_org", companyName = "سازمان پیش‌فرض شرکت", organizationType = "شرکت خصوصی") }
+        .map { it ?: OrganizationEntity(id = "default_org", companyName = "گروه ارتباطات و خدمات سازمانی", organizationType = "شرکت دانش‌بنیان / سازمانی") }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = OrganizationEntity(id = "default_org", companyName = "سازمان پیش‌فرض شرکت", organizationType = "شرکت خصوصی")
+            initialValue = OrganizationEntity(id = "default_org", companyName = "گروه ارتباطات و خدمات سازمانی", organizationType = "شرکت دانش‌بنیان / سازمانی")
         )
 
     val departments: StateFlow<List<DepartmentEntity>> = departmentDao.getAllDepartmentsFlow()
@@ -86,18 +88,207 @@ class EnterpriseViewModel(application: Application) : AndroidViewModel(applicati
             initialValue = emptyList()
         )
 
+    val conversations: StateFlow<List<ConversationEntity>> = conversationDao.getAllConversations()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     init {
-        // Populate default enterprise state if empty
+        // Populate default enterprise state and check database connections
         viewModelScope.launch {
             if (profileDao.getProfile() == null) {
                 profileDao.saveProfile(EnterpriseProfileEntity())
-                auditDao.insertLog(
-                    SecurityAuditLogEntity(
-                        eventType = "SYSTEM_INIT",
-                        description = "سیستم Enterprise با موفقیت مقداردهی اولیه شد."
+            }
+
+            if (organizationDao.getOrganization() == null) {
+                organizationDao.insertOrganization(
+                    OrganizationEntity(
+                        id = "default_org",
+                        companyName = "گروه ارتباطات و خدمات سازمانی",
+                        organizationType = "شرکت دانش‌بنیان / سازمانی"
                     )
                 )
             }
+
+            if (departmentDao.getAllDepartments().isEmpty()) {
+                departmentDao.insertDepartments(
+                    listOf(
+                        DepartmentEntity("dept_support", "default_org", "پشتیبانی و ارتباط با مشتریان", "مهندس اکبری"),
+                        DepartmentEntity("dept_sales", "default_org", "فروش و بازاریابی", "دکتر شمس"),
+                        DepartmentEntity("dept_it", "default_org", "فناوری اطلاعات و زیرساخت", "مهندس رضایی")
+                    )
+                )
+            }
+
+            if (employeeDao.getAllEmployees().isEmpty()) {
+                employeeDao.insertEmployees(
+                    listOf(
+                        EmployeeEntity("emp_1", "dept_support", "علی محمدی", "MANAGER", "SEND_SMS,VIEW_CRM,RESOLVE_TICKET"),
+                        EmployeeEntity("emp_2", "dept_sales", "سارا احمدی", "EMPLOYEE", "SEND_SMS,VIEW_CRM"),
+                        EmployeeEntity("emp_3", "dept_it", "امیر حسینی", "ADMIN", "ALL_PERMISSIONS")
+                    )
+                )
+            }
+
+            val existingTemplates = templateDao.getAllTemplatesFlow().firstOrNull() ?: emptyList()
+            if (existingTemplates.isEmpty()) {
+                templateDao.insertOrUpdateTemplate(
+                    BusinessTemplateEntity(
+                        title = "تایید ثبت سفارش و کد پیگیری",
+                        body = "سلام {name} گرامی، سفارش شما ثبت و در حال آماده‌سازی است. کد پیگیری شما: {order_number}",
+                        category = "فروش"
+                    )
+                )
+                templateDao.insertOrUpdateTemplate(
+                    BusinessTemplateEntity(
+                        title = "صدور فاکتور و پرداخت",
+                        body = "مشتری ارجمند {name}، فاکتور به مبلغ {amount} ریال صادر شد. جهت پرداخت آنلاین اقدام فرمایید.",
+                        category = "مالی"
+                    )
+                )
+                templateDao.insertOrUpdateTemplate(
+                    BusinessTemplateEntity(
+                        title = "پیگیری قرارداد و خدمات",
+                        body = "جناب آقای/خانم {name}، جهت پیگیری مفاد قرارداد لطفا با واحد پشتیبانی در تماس باشید.",
+                        category = "پشتیبانی"
+                    )
+                )
+                templateDao.insertOrUpdateTemplate(
+                    BusinessTemplateEntity(
+                        title = "تبریک مناسبتی و هدیه ویژه",
+                        body = "همراه گرامی {name}، سالروز میلادتان فرخنده باد! هدیه ویژه سازمانی برای خرید بعدی شما منظور گردید.",
+                        category = "عمومی"
+                    )
+                )
+            }
+
+            val existingRules = ruleDao.getAllRulesFlow().firstOrNull() ?: emptyList()
+            if (existingRules.isEmpty()) {
+                ruleDao.insertOrUpdateRule(
+                    AutomationRuleEntity(
+                        name = "پیشنهاد خودکار قالب استعلام قیمت",
+                        triggerKeyword = "قیمت",
+                        actionType = "SUGGEST_TEMPLATE",
+                        actionValue = "ارسال تعرفه و لیست قیمت رسمی",
+                        isEnabled = true
+                    )
+                )
+                ruleDao.insertOrUpdateRule(
+                    AutomationRuleEntity(
+                        name = "ارجاع خودکار پیام‌های فوری",
+                        triggerKeyword = "فوری",
+                        actionType = "MARK_STATUS",
+                        actionValue = "VIP",
+                        isEnabled = true
+                    )
+                )
+            }
+
+            val existingCustomers = crmDao.getAllCustomersFlow().firstOrNull() ?: emptyList()
+            if (existingCustomers.isEmpty()) {
+                crmDao.insertOrUpdateCustomer(
+                    CrmCustomerEntity(
+                        name = "شرکت مهندسی داده‌ورزان پارس",
+                        phoneNumber = "09121112233",
+                        company = "داده‌ورزان پارس",
+                        email = "info@dadevarzan.ir",
+                        notes = "مشتری کلیدی سازمانی - قرارداد سالانه فعال",
+                        tags = "VIP, مشتری ویژه",
+                        customerStatus = "VIP"
+                    )
+                )
+                crmDao.insertOrUpdateCustomer(
+                    CrmCustomerEntity(
+                        name = "بازرگانی پیشگامان صنعت نوین",
+                        phoneNumber = "09359876543",
+                        company = "پیشگامان صنعت نوین",
+                        email = "contact@pishgaman.com",
+                        notes = "استعلام تعرفه ارسال پیامک انبوه و قالب‌ها",
+                        tags = "مشتری, سرنخ فروش",
+                        customerStatus = "LEAD"
+                    )
+                )
+                crmDao.insertOrUpdateCustomer(
+                    CrmCustomerEntity(
+                        name = "فروشگاه زنجیره‌ای تارا",
+                        phoneNumber = "09198765432",
+                        company = "هایپرمارکت‌های تارا",
+                        email = "crm@taramarket.ir",
+                        notes = "مشتری فعال کمپین‌های هفتگی تخفیف",
+                        tags = "مشتری, فعال",
+                        customerStatus = "ACTIVE"
+                    )
+                )
+            }
+
+            auditDao.insertLog(
+                SecurityAuditLogEntity(
+                    eventType = "ENTERPRISE_INIT",
+                    description = "سامانه سازمانی و پایگاه داده با کلیه جداول و قالب‌های اولیه آماده بکار شد."
+                )
+            )
+        }
+    }
+
+    fun getMessagesForThread(threadId: Long): Flow<List<MessageEntity>> {
+        return messageDao.getMessagesForThread(threadId)
+    }
+
+    fun sendMessage(threadId: Long, recipient: String, body: String) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val effectiveThreadId = if (threadId > 0) threadId else now
+            val msg = MessageEntity(
+                threadId = effectiveThreadId,
+                address = recipient,
+                body = body,
+                timestamp = now,
+                isRead = true,
+                type = 2 // SENT
+            )
+            messageDao.insertMessage(msg)
+
+            val conv = conversationDao.getConversationByThreadId(effectiveThreadId)
+            val customer = crmDao.getCustomerByPhone(recipient)
+            val updatedConv = conv?.copy(
+                lastMessage = body,
+                lastTimestamp = now,
+                unreadCount = 0
+            ) ?: ConversationEntity(
+                threadId = effectiveThreadId,
+                address = recipient,
+                contactName = customer?.name ?: recipient,
+                lastMessage = body,
+                lastTimestamp = now,
+                unreadCount = 0
+            )
+            conversationDao.insertOrUpdateConversation(updatedConv)
+
+            // Update customer last contact date
+            if (customer != null) {
+                crmDao.insertOrUpdateCustomer(customer.copy(lastContactDate = now))
+            }
+
+            auditDao.insertLog(
+                SecurityAuditLogEntity(
+                    eventType = "SMS_SEND",
+                    description = "پیامک سازمانی به $recipient با متن: ${body.take(30)}... ارسال شد."
+                )
+            )
+        }
+    }
+
+    fun deleteConversation(threadId: Long) {
+        viewModelScope.launch {
+            conversationDao.setConversationHidden(threadId, true)
+            auditDao.insertLog(
+                SecurityAuditLogEntity(
+                    eventType = "CONVERSATION_ARCHIVE",
+                    description = "گفتگو با شناسه $threadId بایگانی گردید."
+                )
+            )
         }
     }
 

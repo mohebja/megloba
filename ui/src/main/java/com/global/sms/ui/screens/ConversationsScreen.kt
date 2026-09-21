@@ -73,6 +73,7 @@ import com.global.sms.core.util.PersianUtils
 import com.global.sms.data.entity.ConversationEntity
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import androidx.paging.LoadState
 import com.global.sms.data.entity.MessageCategory
 import com.global.sms.ui.theme.BankCategoryColor
 import com.global.sms.ui.theme.ImportantCategoryColor
@@ -105,7 +106,6 @@ fun ConversationsScreen(
     onComposeNew: () -> Unit,
     onRequestDefaultSms: () -> Unit = {}
 ) {
-    val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val usePersianDigits by viewModel.usePersianDigits.collectAsStateWithLifecycle()
@@ -278,7 +278,7 @@ fun ConversationsScreen(
 
             val pagedConversations = viewModel.conversationsPagingFlow.collectAsLazyPagingItems()
 
-            if (pagedConversations.itemCount == 0 && conversations.isEmpty()) {
+            if (pagedConversations.loadState.refresh is LoadState.NotLoading && pagedConversations.itemCount == 0) {
                 com.global.sms.ui.components.EmptySmsImportPrompt(
                     onImportClick = { viewModel.startHistoricalSmsImport(force = true) },
                     onRequestDefaultSms = onRequestDefaultSms,
@@ -288,32 +288,13 @@ fun ConversationsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    if (pagedConversations.itemCount > 0) {
-                        items(
-                            count = pagedConversations.itemCount,
-                            key = pagedConversations.itemKey { it.threadId },
-                            contentType = { "conversation_card" }
-                        ) { index ->
-                            val conversation = pagedConversations[index]
-                            if (conversation != null) {
-                                ConversationCard(
-                                    conversation = conversation,
-                                    style = settings.conversationStyle,
-                                    usePersianDigits = usePersianDigits,
-                                    usePersianCalendar = usePersianCalendar,
-                                    onClick = { onOpenThread(conversation.threadId) },
-                                    onPinToggle = { viewModel.togglePinConversation(conversation.threadId, conversation.isPinned) },
-                                    onHideToVault = { viewModel.hideConversation(conversation.threadId, true) },
-                                    onDelete = { viewModel.deleteConversation(conversation.threadId) }
-                                )
-                            }
-                        }
-                    } else {
-                        items(
-                            items = conversations,
-                            key = { it.threadId },
-                            contentType = { "conversation_card" }
-                        ) { conversation ->
+                    items(
+                        count = pagedConversations.itemCount,
+                        key = { index -> pagedConversations.peek(index)?.threadId ?: index },
+                        contentType = { "conversation_card" }
+                    ) { index ->
+                        val conversation = pagedConversations[index]
+                        if (conversation != null) {
                             ConversationCard(
                                 conversation = conversation,
                                 style = settings.conversationStyle,

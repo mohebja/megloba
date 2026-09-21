@@ -16,6 +16,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.LoadState
 import com.global.sms.data.entity.ConversationEntity
 import com.global.sms.ui.classic.components.ClassicThreadCard
 import com.global.sms.ui.classic.components.ClassicTopBar
@@ -32,11 +34,11 @@ fun ClassicConversationsScreen(
     onOpenSettings: () -> Unit,
     onComposeNew: () -> Unit
 ) {
-    val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
     val isImportingSms by viewModel.isImportingSms.collectAsStateWithLifecycle()
     val smsImportProgress by viewModel.smsImportProgress.collectAsStateWithLifecycle()
     val smsImportStatusText by viewModel.smsImportStatusText.collectAsStateWithLifecycle()
+    val pagingItems = viewModel.conversationsPagingFlow.collectAsLazyPagingItems()
     var selectedConversationForMenu by remember { mutableStateOf<ConversationEntity?>(null) }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -74,7 +76,7 @@ fun ClassicConversationsScreen(
                     statusText = smsImportStatusText
                 )
 
-                if (conversations.isEmpty()) {
+                if (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0) {
                     com.global.sms.ui.components.EmptySmsImportPrompt(
                         onImportClick = { viewModel.startHistoricalSmsImport(force = true) },
                         onRequestDefaultSms = { viewModel.showDefaultSmsDialog.value = true },
@@ -87,35 +89,39 @@ fun ClassicConversationsScreen(
                             .testTag("classic_conversations_list")
                     ) {
                         items(
-                            items = conversations,
-                            key = { it.threadId }
-                        ) { conversation ->
-                            ConversationSwipeRow(
-                                conversation = conversation,
-                                onClick = { onOpenThread(conversation.threadId) },
-                                onLongClick = { selectedConversationForMenu = conversation },
-                                onSwipeRightToMarkReadUnread = {
-                                    viewModel.toggleReadUnread(conversation)
-                                },
-                                onSwipeLeftToArchive = {
-                                    viewModel.archiveConversation(conversation.threadId)
-                                }
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .testTag("classic_conversation_item_${conversation.threadId}")
-                                        .combinedClickable(
-                                            onClick = { onOpenThread(conversation.threadId) },
-                                            onLongClick = { selectedConversationForMenu = conversation }
-                                        )
+                            count = pagingItems.itemCount,
+                            key = { index -> pagingItems.peek(index)?.threadId ?: index }
+                        ) { index ->
+                            val conversation = pagingItems[index]
+                            if (conversation != null) {
+                                ConversationSwipeRow(
+                                    conversation = conversation,
+                                    onClick = { onOpenThread(conversation.threadId) },
+                                    onLongClick = { selectedConversationForMenu = conversation },
+                                    onSwipeRightToMarkReadUnread = {
+                                        viewModel.toggleReadUnread(conversation)
+                                    },
+                                    onSwipeLeftToArchive = {
+                                        viewModel.archiveConversation(conversation.threadId)
+                                    }
                                 ) {
-                                    ClassicThreadCard(
-                                        conversation = conversation,
-                                        onClick = { onOpenThread(conversation.threadId) }
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .testTag("classic_conversation_item_${conversation.threadId}")
+                                            .testTag("classic_conversation_card_${conversation.threadId}")
+                                            .combinedClickable(
+                                                onClick = { onOpenThread(conversation.threadId) },
+                                                onLongClick = { selectedConversationForMenu = conversation }
+                                            )
+                                    ) {
+                                        ClassicThreadCard(
+                                            conversation = conversation,
+                                            onClick = { onOpenThread(conversation.threadId) }
+                                        )
+                                    }
                                 }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         }
                     }
                 }

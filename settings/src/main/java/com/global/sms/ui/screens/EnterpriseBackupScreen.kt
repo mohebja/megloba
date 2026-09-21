@@ -205,18 +205,26 @@ fun EnterpriseBackupScreen(
                                     withContext(Dispatchers.IO) {
                                         try {
                                             val db = GlobalSmsDatabase.getInstance(context)
-                                            val messages = db.messageDao().getAllMessagesSync()
-                                            val backupItems = messages.map {
-                                                BackupMessageItem(
-                                                    id = it.id,
-                                                    threadId = it.threadId,
-                                                    address = it.address,
-                                                    body = it.body,
-                                                    date = it.timestamp,
-                                                    type = it.type,
-                                                    read = if (it.isRead) 1 else 0,
-                                                    status = it.deliveryStatus
-                                                )
+                                            val backupItems = mutableListOf<BackupMessageItem>()
+                                            var offset = 0
+                                            while (true) {
+                                                val batch = db.messageDao().getMessagesPaged(limit = 1000, offset = offset)
+                                                if (batch.isEmpty()) break
+                                                batch.forEach {
+                                                    backupItems.add(
+                                                        BackupMessageItem(
+                                                            id = it.id,
+                                                            threadId = it.threadId,
+                                                            address = it.address,
+                                                            body = it.body,
+                                                            date = it.timestamp,
+                                                            type = it.type,
+                                                            read = if (it.isRead) 1 else 0,
+                                                            status = it.deliveryStatus
+                                                        )
+                                                    )
+                                                }
+                                                offset += batch.size
                                             }
                                             val model = EnterpriseBackupModel(
                                                 version = 1,
@@ -294,7 +302,7 @@ fun EnterpriseBackupScreen(
                                     password = password
                                 ) { restoredModel ->
                                     val db = GlobalSmsDatabase.getInstance(context)
-                                    restoredModel.messages.forEach { item ->
+                                    for (item in restoredModel.messages) {
                                         db.messageDao().insertMessage(
                                             MessageEntity(
                                                 id = item.id,

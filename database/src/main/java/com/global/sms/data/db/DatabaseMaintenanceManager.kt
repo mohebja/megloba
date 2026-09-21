@@ -21,19 +21,24 @@ object DatabaseMaintenanceManager {
         try {
             Log.d(TAG, "Starting automatic database maintenance...")
 
-            // 1. Optimize SQLite query planner based on index usage
             db.openHelper.writableDatabase.query("PRAGMA optimize;").close()
-
-            // 2. Flush WAL log into main DB file
             db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL);").close()
 
-            // 3. Clean up spam older than 30 days
             val thirtyDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30)
             val deletedSpamCount = db.messageDao().deleteOldSpamMessages(thirtyDaysAgo)
             Log.d(TAG, "Deleted $deletedSpamCount expired spam messages.")
 
-            // 4. Run VACUUM if needed to rebuild database file & reduce fragmentation
-            db.openHelper.writableDatabase.execSQL("VACUUM;")
+            val pageCountCursor = db.openHelper.writableDatabase.query("PRAGMA page_count;")
+            val pageCount = if (pageCountCursor.moveToFirst()) pageCountCursor.getLong(0) else 0L
+            pageCountCursor.close()
+
+            val freelistCursor = db.openHelper.writableDatabase.query("PRAGMA freelist_count;")
+            val freelistCount = if (freelistCursor.moveToFirst()) freelistCursor.getLong(0) else 0L
+            freelistCursor.close()
+
+            if (pageCount > 0L && freelistCount * 10L >= pageCount) {
+                db.openHelper.writableDatabase.execSQL("VACUUM;")
+            }
 
             Log.d(TAG, "Database maintenance completed successfully.")
         } catch (e: Exception) {

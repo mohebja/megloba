@@ -55,7 +55,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                             db.messageDao().markThreadAsRead(threadId)
                             db.conversationDao().markConversationRead(threadId)
                         } else if (messageId != -1L) {
-                            val msg = db.messageDao().getAllMessagesSync().find { it.id == messageId }
+                            val msg = db.messageDao().getMessageById(messageId)
                             if (msg != null) {
                                 db.messageDao().markThreadAsRead(msg.threadId)
                                 db.conversationDao().markConversationRead(msg.threadId)

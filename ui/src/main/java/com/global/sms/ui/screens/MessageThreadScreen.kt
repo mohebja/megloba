@@ -94,11 +94,11 @@ fun MessageThreadScreen(
     threadId: Long,
     onBack: () -> Unit
 ) {
-    val messages by viewModel.activeThreadMessages.collectAsStateWithLifecycle()
     val quickReplies by viewModel.quickReplies.collectAsStateWithLifecycle()
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
     val usePersianDigits by viewModel.usePersianDigits.collectAsStateWithLifecycle()
     val usePersianCalendar by viewModel.usePersianCalendar.collectAsStateWithLifecycle()
+    val pagedMessages = viewModel.activeThreadMessagesPagingFlow.collectAsLazyPagingItems()
 
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -114,14 +114,16 @@ fun MessageThreadScreen(
     var fontScale by remember(settings.messageFontScale) { mutableFloatStateOf(settings.messageFontScale) }
 
     val segmentInfo = SmsSegmenter.calculateSegments(messageText)
-    val rawAddress = messages.firstOrNull()?.address ?: "گیرنده"
+    val rawAddress = remember(pagedMessages.itemCount) {
+        pagedMessages.peek(0)?.address ?: "گیرنده"
+    }
     val contactInfo = rememberContactInfo(rawAddress)
     val address = contactInfo.name ?: rawAddress
 
     val popularEmojis = listOf("😊", "😂", "❤️", "👍", "🙏", "📱", "💳", "🔑", "⏰", "📍", "🛍️", "💼", "📌", "✉️", "✅", "🔥", "🎉", "💐")
 
-    val lastReceivedMessage = remember(messages) {
-        messages.lastOrNull { it.type == MessageType.INBOX.code }
+    val lastReceivedMessage = remember(pagedMessages.itemCount) {
+        (0 until minOf(pagedMessages.itemCount, 20)).mapNotNull { pagedMessages.peek(it) }.firstOrNull { it.type == MessageType.INBOX.code }
     }
     val smartReplySuggestions = remember(lastReceivedMessage) {
         if (lastReceivedMessage != null) {
@@ -217,8 +219,6 @@ fun MessageThreadScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            val pagedMessages = viewModel.activeThreadMessagesPagingFlow.collectAsLazyPagingItems()
-
             // Message List with Pinch-to-Zoom Font Resize Support & Feedback Badge
             Box(
                 modifier = Modifier
@@ -240,36 +240,13 @@ fun MessageThreadScreen(
                         .padding(horizontal = 12.dp),
                     reverseLayout = true
                 ) {
-                    if (pagedMessages.itemCount > 0) {
-                        items(
-                            count = pagedMessages.itemCount,
-                            key = pagedMessages.itemKey { it.id },
-                            contentType = { index -> pagedMessages[index]?.type ?: 0 }
-                        ) { index ->
-                            val message = pagedMessages[index]
-                            if (message != null) {
-                                MessageBubble(
-                                    message = message,
-                                    settings = settings,
-                                    fontScale = fontScale,
-                                    usePersianDigits = usePersianDigits,
-                                    usePersianCalendar = usePersianCalendar,
-                                    onCopyOtp = { code ->
-                                        clipboardManager.setText(AnnotatedString(code))
-                                        Toast.makeText(context, "کد تایید کپی شد: $code", Toast.LENGTH_SHORT).show()
-                                    },
-                                    onSpeak = { viewModel.speakMessage(message.body) },
-                                    onHideMessage = { viewModel.hideMessage(message.id, true) },
-                                    onLongClick = { selectedMessageForAction = message }
-                                )
-                            }
-                        }
-                    } else {
-                        items(
-                            items = messages,
-                            key = { it.id },
-                            contentType = { message -> message.type }
-                        ) { message ->
+                    items(
+                        count = pagedMessages.itemCount,
+                        key = { index -> pagedMessages.peek(index)?.id ?: index },
+                        contentType = { index -> pagedMessages[index]?.type ?: 0 }
+                    ) { index ->
+                        val message = pagedMessages[index]
+                        if (message != null) {
                             MessageBubble(
                                 message = message,
                                 settings = settings,
@@ -407,7 +384,8 @@ fun MessageThreadScreen(
                                 selected = false,
                                 onClick = {
                                     val summary = LocalAIBrain.summarizeConversation(
-                                        messages.map { ChatMessage(sender = if (it.type == 1) "مخاطب" else "من", body = it.body) }
+                                        (0 until minOf(pagedMessages.itemCount, 50)).mapNotNull { pagedMessages.peek(it) }
+                                            .map { ChatMessage(sender = if (it.type == 1) "مخاطب" else "من", body = it.body) }
                                     )
                                     Toast.makeText(context, "خلاصه گفتگو: $summary", Toast.LENGTH_LONG).show()
                                 },
@@ -581,6 +559,7 @@ fun MessageBubble(
             colors = CardDefaults.cardColors(containerColor = bubbleColor),
             modifier = Modifier
                 .padding(horizontal = 8.dp)
+                .testTag("message_bubble_${message.id}")
                 .combinedClickable(
                     onLongClick = onLongClick,
                     onClick = {}

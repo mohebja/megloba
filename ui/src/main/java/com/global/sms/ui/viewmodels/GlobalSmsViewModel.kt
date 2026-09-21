@@ -337,9 +337,9 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val messageAnalyticsFlow: StateFlow<LocalAnalyticsSummary> = messageDao.getAllMessagesFlow()
-        .map { messages ->
-            MessageAnalyticsEngine.calculateSummary(messages)
+    val messageAnalyticsFlow: StateFlow<LocalAnalyticsSummary> = messageDao.getTotalMessageCount()
+        .map {
+            MessageAnalyticsEngine.calculateSummaryFromDao(messageDao)
         }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalAnalyticsSummary())
@@ -883,8 +883,15 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun exportBackup(password: String, onResult: (File?) -> Unit) {
-        viewModelScope.launch {
-            val allMessages = hiddenMessages.value + activeThreadMessages.value
+        viewModelScope.launch(Dispatchers.IO) {
+            val allMessages = mutableListOf<MessageEntity>()
+            var offset = 0
+            while (true) {
+                val batch = messageDao.getMessagesPaged(limit = 1000, offset = offset)
+                if (batch.isEmpty()) break
+                allMessages.addAll(batch)
+                offset += batch.size
+            }
             val file = BackupManager.exportBackup(getApplication(), allMessages, password)
             onResult(file)
         }

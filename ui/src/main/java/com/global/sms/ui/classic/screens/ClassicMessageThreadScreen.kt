@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.global.sms.data.entity.MessageType
 import com.global.sms.ui.classic.components.ClassicMessageBubble
 import com.global.sms.ui.classic.components.ClassicTopBar
@@ -26,12 +27,12 @@ fun ClassicMessageThreadScreen(
     threadId: Long,
     onBack: () -> Unit
 ) {
-    val activeThread by viewModel.activeThreadMessages.collectAsStateWithLifecycle()
+    val pagingItems = viewModel.activeThreadMessagesPagingFlow.collectAsLazyPagingItems()
     val usePersianDigits by viewModel.usePersianDigits.collectAsStateWithLifecycle()
     var inputText by remember { mutableStateOf("") }
 
-    val contactTitle = remember(activeThread) {
-        activeThread.firstOrNull()?.address ?: "گفتگوی کلاسیک"
+    val contactTitle = remember(pagingItems.itemCount) {
+        pagingItems.peek(0)?.address ?: "گفتگوی کلاسیک"
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -57,16 +58,21 @@ fun ClassicMessageThreadScreen(
                     reverseLayout = true
                 ) {
                     items(
-                        items = activeThread,
-                        key = { it.id }
-                    ) { msg ->
-                        val isOutgoing = msg.type == MessageType.SENT.code || msg.type == MessageType.OUTBOX.code
-                        ClassicMessageBubble(
-                            message = msg.body,
-                            isOutgoing = isOutgoing,
-                            timestamp = msg.timestamp,
-                            modifier = Modifier.testTag("classic_bubble_${msg.id}")
-                        )
+                        count = pagingItems.itemCount,
+                        key = { index -> pagingItems.peek(index)?.id ?: index }
+                    ) { index ->
+                        val msg = pagingItems[index]
+                        if (msg != null) {
+                            val isOutgoing = msg.type == MessageType.SENT.code || msg.type == MessageType.OUTBOX.code
+                            ClassicMessageBubble(
+                                message = msg.body,
+                                isOutgoing = isOutgoing,
+                                timestamp = msg.timestamp,
+                                modifier = Modifier
+                                    .testTag("classic_bubble_${msg.id}")
+                                    .testTag("classic_message_bubble_${msg.id}")
+                            )
+                        }
                     }
                 }
 

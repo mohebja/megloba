@@ -191,8 +191,30 @@ object AiQueryEngine {
             }
 
             else -> {
-                val allMessages = messageDao.getAllMessagesSync()
-                answerGeneralMessageSearch(userQuery, allMessages)
+                val sanitizedTokens = userQuery.replace(Regex("[\"\'*()]"), " ")
+                    .split(Regex("\\s+"))
+                    .map { it.trim() }
+                    .filter { it.length > 1 }
+
+                val ftsQuery = if (sanitizedTokens.isNotEmpty()) {
+                    sanitizedTokens.joinToString(" OR ") { "\"$it\"" }
+                } else ""
+
+                val matches = if (ftsQuery.isNotBlank()) {
+                    try {
+                        messageDao.searchMessagesFts(ftsQuery).firstOrNull() ?: emptyList()
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                } else emptyList()
+
+                val finalMatches = if (matches.isNotEmpty()) {
+                    matches
+                } else {
+                    messageDao.searchMessages(userQuery).firstOrNull() ?: emptyList()
+                }
+
+                answerGeneralMessageSearch(userQuery, finalMatches)
             }
         }
     }

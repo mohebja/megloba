@@ -3,8 +3,10 @@ package com.global.sms.ui.enterprise.navigation
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.global.sms.ui.screens.*
 import com.global.sms.ui.viewmodels.EnterpriseViewModel
 import com.global.sms.ui.viewmodels.GlobalSmsViewModel
@@ -17,6 +19,10 @@ sealed class EnterpriseScreen(val route: String) {
     object WorkflowAutomation : EnterpriseScreen("workflow_automation")
     object EnterpriseAnalytics : EnterpriseScreen("enterprise_analytics")
     object SecurityAuditLogs : EnterpriseScreen("security_audit_logs")
+    object AdaptiveWorkspace : EnterpriseScreen("enterprise_adaptive_workspace")
+    object Customer360 : EnterpriseScreen("customer_360/{customerId}") {
+        fun createRoute(customerId: Long): String = "customer_360/$customerId"
+    }
 }
 
 @Composable
@@ -39,7 +45,20 @@ fun EnterpriseNavGraph(
                 onNavigateBulkSms = { navController.navigate(EnterpriseScreen.BulkSmsSafety.route) },
                 onNavigateAutomation = { navController.navigate(EnterpriseScreen.WorkflowAutomation.route) },
                 onNavigateAnalytics = { navController.navigate(EnterpriseScreen.EnterpriseAnalytics.route) },
-                onNavigateSecurityAudit = { navController.navigate(EnterpriseScreen.SecurityAuditLogs.route) }
+                onNavigateSecurityAudit = { navController.navigate(EnterpriseScreen.SecurityAuditLogs.route) },
+                onNavigateAdaptiveWorkspace = {
+                    navController.navigate(EnterpriseScreen.AdaptiveWorkspace.route)
+                }
+            )
+        }
+
+        composable(EnterpriseScreen.AdaptiveWorkspace.route) {
+            EnterpriseAdaptiveWorkspace(
+                viewModel = enterpriseViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onOpenCustomer360 = { customerId ->
+                    navController.navigate(EnterpriseScreen.Customer360.createRoute(customerId))
+                }
             )
         }
 
@@ -48,9 +67,24 @@ fun EnterpriseNavGraph(
                 viewModel = enterpriseViewModel,
                 onBack = { navController.popBackStack() },
                 onSendMessageToCustomer = { phone ->
-                    val threadId = System.currentTimeMillis()
-                    globalViewModel.selectThread(threadId)
+                    enterpriseViewModel.sendMessage(0L, phone, "سلام، در خدمت شما هستیم.")
+                    navController.navigate(EnterpriseScreen.AdaptiveWorkspace.route)
+                },
+                onOpenCustomer360 = { customerId ->
+                    navController.navigate(EnterpriseScreen.Customer360.createRoute(customerId))
                 }
+            )
+        }
+
+        composable(
+            route = EnterpriseScreen.Customer360.route,
+            arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            Customer360Screen(
+                customerId = customerId,
+                viewModel = enterpriseViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

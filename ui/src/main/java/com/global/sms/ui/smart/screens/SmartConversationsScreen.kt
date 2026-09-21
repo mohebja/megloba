@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.LoadState
 import com.global.sms.data.entity.MessageCategory
 import com.global.sms.ui.smart.components.AiSummaryCard
 import com.global.sms.ui.smart.components.SmartCategoryChipRow
@@ -44,18 +46,13 @@ fun SmartConversationsScreen(
     onOpenSettings: () -> Unit,
     onComposeNew: () -> Unit
 ) {
-    val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
     val isImportingSms by viewModel.isImportingSms.collectAsStateWithLifecycle()
     val smsImportProgress by viewModel.smsImportProgress.collectAsStateWithLifecycle()
     val smsImportStatusText by viewModel.smsImportStatusText.collectAsStateWithLifecycle()
+    val pagingItems = viewModel.conversationsPagingFlow.collectAsLazyPagingItems()
     var selectedCategory by remember { mutableStateOf<MessageCategory?>(null) }
     var showAiSummary by remember { mutableStateOf(true) }
-
-    val filteredConversations = remember(conversations, selectedCategory) {
-        if (selectedCategory == null) conversations
-        else conversations.filter { it.category == selectedCategory }
-    }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
@@ -122,14 +119,14 @@ fun SmartConversationsScreen(
                 val summaryViewModel: com.global.sms.ui.viewmodels.ConversationSummaryViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
                 val dynamicSummary by summaryViewModel.overallSummary.collectAsStateWithLifecycle()
 
-                if (showAiSummary && selectedCategory == null && filteredConversations.isNotEmpty()) {
+                if (showAiSummary && selectedCategory == null && pagingItems.itemCount > 0) {
                     AiSummaryCard(
                         summaryText = dynamicSummary,
                         onDismiss = { showAiSummary = false }
                     )
                 }
 
-                if (filteredConversations.isEmpty()) {
+                if (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0) {
                     com.global.sms.ui.components.EmptySmsImportPrompt(
                         onImportClick = { viewModel.startHistoricalSmsImport(force = true) },
                         onRequestDefaultSms = { viewModel.showDefaultSmsDialog.value = true },
@@ -142,20 +139,23 @@ fun SmartConversationsScreen(
                             .testTag("smart_conversations_list")
                     ) {
                         items(
-                            items = filteredConversations,
-                            key = { it.threadId }
-                        ) { item ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 4.dp)
-                                    .testTag("smart_conversation_item_${item.threadId}")
-                                    .clickable { onOpenThread(item.threadId) },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
+                            count = pagingItems.itemCount,
+                            key = { index -> pagingItems.peek(index)?.threadId ?: index }
+                        ) { index ->
+                            val item = pagingItems[index]
+                            if (item != null && (selectedCategory == null || item.category == selectedCategory)) {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                                        .testTag("smart_conversation_item_${item.threadId}")
+                                        .testTag("smart_conversation_card_${item.threadId}")
+                                        .clickable { onOpenThread(item.threadId) },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -218,4 +218,5 @@ fun SmartConversationsScreen(
             }
         }
     }
+}
 }

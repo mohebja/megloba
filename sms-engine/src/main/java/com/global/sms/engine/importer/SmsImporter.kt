@@ -54,14 +54,13 @@ object SmsImporter {
             return@withContext 0
         }
 
-        // 1. Load existing message signatures for 100% deduplication
-        val existingMessages = try {
-            messageDao.getAllMessagesSync()
+        val existingDedupKeys = try {
+            messageDao.getAllMessageDedupKeys()
         } catch (e: Exception) {
             emptyList()
         }
-        val existingSignatures = existingMessages.mapTo(HashSet(existingMessages.size)) {
-            "${it.address.trim()}|${it.timestamp}|${it.body.trim()}|${it.type}"
+        val existingSignatures = existingDedupKeys.mapTo(HashSet(existingDedupKeys.size)) {
+            "${it.address.trim()}|${it.timestamp}|${it.type}"
         }
 
         // 2. Load existing conversations to preserve custom flags (isHidden, isPinned, etc.)
@@ -180,7 +179,7 @@ object SmsImporter {
                     else -> MessageType.INBOX.code
                 }
 
-                val signature = "${address.trim()}|$timestamp|${body.trim()}|$msgType"
+                val signature = "${address.trim()}|$timestamp|$msgType"
 
                 if (!existingSignatures.contains(signature)) {
                     existingSignatures.add(signature)

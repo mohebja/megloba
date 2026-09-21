@@ -92,7 +92,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CloudConnectorEntity::class,
         MigrationHistoryEntity::class
     ],
-    version = 29,
+    version = 30,
     exportSchema = true
 )
 abstract class GlobalSmsDatabase : RoomDatabase() {
@@ -1011,6 +1011,14 @@ abstract class GlobalSmsDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_type` ON `messages` (`type`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_type_timestamp` ON `messages` (`type`, `timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_address_timestamp_type` ON `messages` (`address`, `timestamp`, `type`)")
+            }
+        }
+
         fun getInstance(context: Context): GlobalSmsDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -1025,7 +1033,7 @@ abstract class GlobalSmsDatabase : RoomDatabase() {
                         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
                         MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
                         MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27,
-                        MIGRATION_27_28, MIGRATION_28_29
+                        MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30
                     )
 
                     .addCallback(object : RoomDatabase.Callback() {
@@ -1035,7 +1043,10 @@ abstract class GlobalSmsDatabase : RoomDatabase() {
                             try {
                                 db.query("PRAGMA synchronous=NORMAL;").close()
                                 db.query("PRAGMA temp_store=MEMORY;").close()
-                                db.query("PRAGMA mmap_size=268435456;").close() // 256MB memory mapping
+                                db.query("PRAGMA mmap_size=67108864;").close()
+                                db.query("PRAGMA cache_size=-8000;").close()
+                                db.query("PRAGMA busy_timeout=5000;").close()
+                                db.query("PRAGMA foreign_keys=ON;").close()
                             } catch (e: Exception) {
                                 Log.w("GlobalSmsDatabase", "Failed to apply optimization PRAGMAs on database open", e)
                             }

@@ -39,7 +39,8 @@ fun EnterpriseDashboardScreen(
     onNavigateBulkSms: () -> Unit = {},
     onNavigateAutomation: () -> Unit = {},
     onNavigateAnalytics: () -> Unit = {},
-    onNavigateSecurityAudit: () -> Unit = {}
+    onNavigateSecurityAudit: () -> Unit = {},
+    onNavigateAdaptiveWorkspace: (Long?) -> Unit = {}
 ) {
     val context = LocalContext.current
     val securityReport = remember { AdvancedAppProtection(context).assessDeviceSecurity() }
@@ -47,6 +48,12 @@ fun EnterpriseDashboardScreen(
     val org by viewModel.organization.collectAsStateWithLifecycle()
     val departments by viewModel.departments.collectAsStateWithLifecycle()
     val employees by viewModel.employees.collectAsStateWithLifecycle()
+    val conversations by viewModel.conversations.collectAsStateWithLifecycle()
+    val customers by viewModel.customers.collectAsStateWithLifecycle()
+    val templates by viewModel.templates.collectAsStateWithLifecycle()
+    val automationRules by viewModel.automationRules.collectAsStateWithLifecycle()
+    val bulkJobs by viewModel.bulkJobs.collectAsStateWithLifecycle()
+    val auditLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
 
     var showAddDeptDialog by remember { mutableStateOf(false) }
     var showAddEmpDialog by remember { mutableStateOf(false) }
@@ -72,7 +79,7 @@ fun EnterpriseDashboardScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "داشبورد سازمانی و مدیریت پرسنل",
+                            text = "سامانه پیامک و ارتباطات سازمانی",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
@@ -89,6 +96,16 @@ fun EnterpriseDashboardScreen(
                         }
                     },
                     actions = {
+                        IconButton(
+                            onClick = { onNavigateAdaptiveWorkspace(null) },
+                            modifier = Modifier.testTag("btn_top_workspace")
+                        ) {
+                            Icon(
+                                Icons.Default.Chat,
+                                contentDescription = "میز کار گفتگوها",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         IconButton(
                             onClick = {
                                 editOrgName = org.companyName
@@ -142,6 +159,198 @@ fun EnterpriseDashboardScreen(
                                 text = "نوع: ${org.organizationType} | سطح: ${org.subscriptionLevel}",
                                 style = MaterialTheme.typography.bodySmall
                             )
+                        }
+                        Button(
+                            onClick = { onNavigateAdaptiveWorkspace(null) },
+                            modifier = Modifier.testTag("btn_launch_workspace")
+                        ) {
+                            Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("میز کار گفتگوها", fontSize = 11.sp)
+                        }
+                    }
+                }
+
+                // Module Launchpad Grid (Enterprise Operations)
+                Text(
+                    text = "ماژول‌ها و ابزارهای سازمانی",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        EnterpriseModuleCard(
+                            title = "مدیریت مشتریان CRM",
+                            subtitle = "پرونده ۳۶۰ درجه و سرنخ‌ها",
+                            badgeText = "${customers.size} مشتری",
+                            icon = Icons.Default.People,
+                            color = Color(0xFF1E88E5),
+                            onClick = onNavigateCrm,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        EnterpriseModuleCard(
+                            title = "میز کار انطباقی پیام‌ها",
+                            subtitle = "پاسخ‌دهی زنده و هوش ارتباطی",
+                            badgeText = "${conversations.size} گفتگو",
+                            icon = Icons.Default.Chat,
+                            color = Color(0xFF00897B),
+                            onClick = { onNavigateAdaptiveWorkspace(null) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        EnterpriseModuleCard(
+                            title = "قالب‌های تجاری پیامک",
+                            subtitle = "جایگزینی متغیرهای خودکار",
+                            badgeText = "${templates.size} قالب",
+                            icon = Icons.Default.PostAdd,
+                            color = Color(0xFF6D4C41),
+                            onClick = onNavigateTemplates,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        EnterpriseModuleCard(
+                            title = "ارسال انبوه و ایمن",
+                            subtitle = "کمپین با نرخ تاخیر کنترل‌شده",
+                            badgeText = "${bulkJobs.size} کمپین",
+                            icon = Icons.Default.Campaign,
+                            color = Color(0xFF8E24AA),
+                            onClick = onNavigateBulkSms,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        EnterpriseModuleCard(
+                            title = "اتوماسیون هوشمند کارها",
+                            subtitle = "پاسخ خودکار شرطی به کلمات",
+                            badgeText = "${automationRules.size} قانون",
+                            icon = Icons.Default.PrecisionManufacturing,
+                            color = Color(0xFFE65100),
+                            onClick = onNavigateAutomation,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        EnterpriseModuleCard(
+                            title = "تحلیل و هوش کسب‌وکار",
+                            subtitle = "گزارشات و خروجی CSV",
+                            badgeText = "BI Analytics",
+                            icon = Icons.Default.BarChart,
+                            color = Color(0xFF00ACC1),
+                            onClick = onNavigateAnalytics,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    EnterpriseModuleCard(
+                        title = "ثبت وقایع امنیتی و لاگ‌ها (Audit Log)",
+                        subtitle = "ردگیری غیرقابل تغییر کلیه فعالیت‌ها، خروجی‌ها و تغییرات سازمانی",
+                        badgeText = "${auditLogs.size} لاگ ثبت‌شده",
+                        icon = Icons.Default.Shield,
+                        color = Color(0xFFD32F2F),
+                        onClick = onNavigateSecurityAudit,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Recent Conversations Live Preview
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "گفتگوهای اخیر سازمان (${conversations.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    TextButton(onClick = { onNavigateAdaptiveWorkspace(null) }) {
+                        Text("مشاهده همه در میز کار", fontSize = 12.sp)
+                    }
+                }
+
+                if (conversations.isEmpty()) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("هنوز پیام یا گفتگوی سازمانی ثبت نشده است.", fontSize = 13.sp)
+                            Button(onClick = { onNavigateAdaptiveWorkspace(null) }) {
+                                Text("ارسال اولین پیام سازمانی", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                } else {
+                    conversations.take(4).forEach { conv ->
+                        val customer = customers.find { it.phoneNumber == conv.address }
+                        Card(
+                            onClick = { onNavigateAdaptiveWorkspace(conv.threadId) },
+                            modifier = Modifier.fillMaxWidth(),
+                            elevation = CardDefaults.cardElevation(1.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Chat,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = customer?.name ?: conv.contactName.orEmpty().ifBlank { conv.address },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = PersianUtils.formatTimestamp(conv.lastTimestamp),
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    customer?.company?.let { comp ->
+                                        Text(
+                                            text = comp,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Text(
+                                        text = conv.lastMessage.ifBlank { "بدون پیام" },
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -644,6 +853,71 @@ fun MetricWidgetCard(
 
             Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text(text = subtext, fontSize = 11.sp, color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun EnterpriseModuleCard(
+    title: String,
+    subtitle: String,
+    badgeText: String,
+    icon: ImageVector,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(color.copy(alpha = 0.15f), shape = RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+                }
+                Surface(
+                    color = color.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        color = color,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 15.sp
+            )
         }
     }
 }

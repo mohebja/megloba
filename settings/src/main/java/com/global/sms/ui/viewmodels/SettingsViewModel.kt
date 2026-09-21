@@ -155,8 +155,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val messageDao = database.messageDao()
             val conversationDao = database.conversationDao()
 
-            val allMessages: List<MessageEntity> = messageDao.getAllMessagesSync()
-            val total = allMessages.size
+            val total = messageDao.getTotalMessageCountOnce()
             val catCounts = mutableMapOf<MessageCategory, Int>()
 
             _classificationProgressState.value = ClassificationProgressState(
@@ -166,8 +165,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 categoryCounts = emptyMap()
             )
 
-            allMessages.chunked(100).forEachIndexed { chunkIndex, chunk ->
-                chunk.forEach { msg: MessageEntity ->
+            var offset = 0
+            var processed = 0
+            while (true) {
+                val batch = messageDao.getMessagesPaged(limit = 500, offset = offset)
+                if (batch.isEmpty()) break
+                val toUpdate = mutableListOf<MessageEntity>()
+                batch.forEach { msg: MessageEntity ->
                     val plainBody = com.global.sms.core.security.FieldEncryptionManager.decrypt(msg.body)
                     val classificationResult = com.global.sms.core.classifier.SmsClassifierEngine.classifyMessage(
                         sender = msg.address,
@@ -183,9 +187,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                             category = newCat,
                             isHidden = (newCat == MessageCategory.SPAM)
                         )
-                        messageDao.updateMessage(updatedMsg)
+                        toUpdate.add(updatedMsg)
 
-                        // Update conversation category as well
                         val conv = conversationDao.getConversationByThreadId(msg.threadId)
                         if (conv != null && conv.lastTimestamp <= msg.timestamp) {
                             conversationDao.insertOrUpdateConversation(
@@ -198,10 +201,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                 }
 
-                val currentProcessed = kotlin.math.min((chunkIndex + 1) * 100, total)
+                if (toUpdate.isNotEmpty()) {
+                    messageDao.updateMessages(toUpdate)
+                }
+
+                processed += batch.size
+                offset += batch.size
+
                 _classificationProgressState.value = ClassificationProgressState(
                     isRunning = true,
-                    processedCount = currentProcessed,
+                    processedCount = processed,
                     totalCount = total,
                     categoryCounts = HashMap(catCounts)
                 )

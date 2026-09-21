@@ -11,10 +11,13 @@ import androidx.room.Update
 import androidx.paging.PagingSource
 import kotlinx.coroutines.flow.Flow
 
+data class MessageDedupKey(val address: String, val timestamp: Long, val type: Int)
+data class HourCountRow(val hour: Int, val count: Int)
+
 @Dao
 interface MessageDao {
 
-    @Query("SELECT * FROM messages WHERE threadId = :threadId AND isHidden = 0 ORDER BY timestamp DESC")
+    @Query("SELECT * FROM messages WHERE threadId = :threadId AND isHidden = 0 ORDER BY timestamp DESC LIMIT 200")
     fun getMessagesForThread(threadId: Long): Flow<List<MessageEntity>>
 
     @Query("SELECT * FROM messages WHERE threadId = :threadId AND isHidden = 0 ORDER BY timestamp DESC")
@@ -23,26 +26,36 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE threadId = :threadId AND isHidden = 0 ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
     suspend fun getMessagesForThreadPaged(threadId: Long, limit: Int, offset: Int): List<MessageEntity>
 
-    @Query("SELECT * FROM messages WHERE isHidden = 1 ORDER BY timestamp DESC")
+    @Query("SELECT * FROM messages WHERE isHidden = 1 ORDER BY timestamp DESC LIMIT 500")
     fun getHiddenMessages(): Flow<List<MessageEntity>>
 
-    @Query("SELECT * FROM messages WHERE category = 'SPAM' ORDER BY timestamp DESC")
+    @Query("SELECT * FROM messages WHERE isHidden = 1 ORDER BY timestamp DESC")
+    fun getHiddenMessagesPagingSource(): PagingSource<Int, MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE category = 'SPAM' ORDER BY timestamp DESC LIMIT 500")
     fun getSpamMessages(): Flow<List<MessageEntity>>
 
-    @Query("SELECT * FROM messages WHERE body LIKE '%' || :query || '%' OR address LIKE '%' || :query || '%' ORDER BY timestamp DESC")
+    @Query("SELECT * FROM messages WHERE category = 'SPAM' ORDER BY timestamp DESC")
+    fun getSpamMessagesPagingSource(): PagingSource<Int, MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE category = 'BANK' ORDER BY timestamp DESC")
+    fun getBankMessagesPagingSource(): PagingSource<Int, MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE body LIKE '%' || :query || '%' OR address LIKE '%' || :query || '%' ORDER BY timestamp DESC LIMIT 200")
     fun searchMessages(query: String): Flow<List<MessageEntity>>
 
     @Query("""
         SELECT messages.* FROM messages 
-        JOIN messages_fts ON messages.id = messages_fts.docid 
+        JOIN messages_fts ON messages.id = messages_fts.rowid 
         WHERE messages_fts MATCH :query AND messages.isHidden = 0 
         ORDER BY messages.timestamp DESC
+        LIMIT 200
     """)
     fun searchMessagesFts(query: String): Flow<List<MessageEntity>>
 
     @Query("""
         SELECT messages.* FROM messages 
-        JOIN messages_fts ON messages.id = messages_fts.docid 
+        JOIN messages_fts ON messages.id = messages_fts.rowid 
         WHERE messages_fts MATCH :query AND messages.isHidden = 0 
         ORDER BY messages.timestamp DESC
         LIMIT :limit OFFSET :offset
@@ -50,15 +63,14 @@ interface MessageDao {
     suspend fun searchMessagesFtsPaged(query: String, limit: Int, offset: Int): List<MessageEntity>
 
     @Query("""
-        SELECT DISTINCT messages.* FROM messages 
-        LEFT JOIN messages_fts ON messages.id = messages_fts.docid 
-        WHERE (:query IS NULL OR :query = '' OR messages_fts MATCH :query OR messages.body LIKE '%' || :query || '%' OR messages.address LIKE '%' || :query || '%')
+        SELECT messages.* FROM messages 
+        WHERE (:query IS NULL OR :query = '' OR messages.id IN (SELECT messages_fts.rowid FROM messages_fts WHERE messages_fts MATCH :query) OR messages.address LIKE '%' || :query || '%')
         AND (:category IS NULL OR :category = '' OR messages.category = :category)
-        AND (:isOtpOnly = 0 OR (messages.otpCode IS NOT NULL AND messages.otpCode != '') OR messages.body LIKE '%کد%' OR messages.body LIKE '%رمز%')
+        AND (:isOtpOnly = 0 OR messages.category = 'OTP' OR (messages.otpCode IS NOT NULL AND messages.otpCode != ''))
         AND (:hasAttachmentOnly = 0 OR (messages.attachmentUri IS NOT NULL AND messages.attachmentUri != '') OR messages.isMms = 1)
         AND (:isUnreadOnly = 0 OR messages.isRead = 0)
         AND (:isPinnedOnly = 0 OR messages.isPinned = 1)
-        AND (:isBankOnly = 0 OR messages.category = 'BANK' OR messages.body LIKE '%تراکنش%' OR messages.body LIKE '%واریز%' OR messages.body LIKE '%برداشت%' OR messages.body LIKE '%موجودی%')
+        AND (:isBankOnly = 0 OR messages.category = 'BANK')
         AND (:senderFilter IS NULL OR :senderFilter = '' OR messages.address LIKE '%' || :senderFilter || '%')
         AND (:startDate IS NULL OR messages.timestamp >= :startDate)
         AND (:endDate IS NULL OR messages.timestamp <= :endDate)
@@ -80,15 +92,38 @@ interface MessageDao {
         includeHidden: Boolean
     ): Flow<List<MessageEntity>>
 
-
-    @Query("SELECT * FROM messages ORDER BY timestamp DESC")
+    @Query("SELECT * FROM messages ORDER BY timestamp DESC LIMIT 500")
     fun getAllMessagesFlow(): Flow<List<MessageEntity>>
 
     @Query("SELECT * FROM messages")
     suspend fun getAllMessagesSync(): List<MessageEntity>
 
+    @Query("SELECT address, timestamp, type FROM messages")
+    suspend fun getAllMessageDedupKeys(): List<MessageDedupKey>
+
+    @Query("SELECT * FROM messages ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    suspend fun getMessagesPaged(limit: Int, offset: Int): List<MessageEntity>
+
     @Update
     suspend fun updateMessage(message: MessageEntity)
+
+    @Update
+    suspend fun updateMessages(messages: List<MessageEntity>)
+
+    @Query("SELECT COUNT(*) FROM messages WHERE type = 1")
+    suspend fun getIncomingCount(): Int
+
+    @Query("SELECT COUNT(*) FROM messages WHERE type = 2")
+    suspend fun getOutgoingCount(): Int
+
+    @Query("SELECT COUNT(*) FROM messages WHERE category = 'SPAM'")
+    suspend fun getSpamCountOnce(): Int
+
+    @Query("SELECT address FROM messages GROUP BY address ORDER BY COUNT(*) DESC LIMIT 1")
+    suspend fun getTopSenderAddress(): String?
+
+    @Query("SELECT CAST(strftime('%H', timestamp / 1000, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS count FROM messages GROUP BY hour ORDER BY hour ASC")
+    suspend fun getHourlyDistribution(): List<HourCountRow>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity): Long
@@ -182,14 +217,14 @@ interface MessageDao {
     @Query("SELECT COUNT(*) FROM messages WHERE category = 'BANK'")
     fun getBankCount(): Flow<Int>
 
-    @Query("SELECT * FROM messages WHERE category = 'BANK' OR body LIKE '%تراکنش%' OR body LIKE '%واریز%' OR body LIKE '%برداشت%' OR body LIKE '%موجودی%' OR body LIKE '%رمز پویا%' OR body LIKE '%کد تایید%' ORDER BY timestamp DESC")
+    @Query("SELECT * FROM messages WHERE category = 'BANK' ORDER BY timestamp DESC LIMIT 500")
     fun getBankMessages(): Flow<List<MessageEntity>>
 }
 
 @Dao
 interface ConversationDao {
 
-    @Query("SELECT * FROM conversations WHERE isHidden = 0 ORDER BY isPinned DESC, lastTimestamp DESC")
+    @Query("SELECT * FROM conversations WHERE isHidden = 0 ORDER BY isPinned DESC, lastTimestamp DESC LIMIT 1000")
     fun getAllConversations(): Flow<List<ConversationEntity>>
 
     @Query("SELECT * FROM conversations WHERE isHidden = 0 ORDER BY isPinned DESC, lastTimestamp DESC")
@@ -204,7 +239,7 @@ interface ConversationDao {
     @Query("SELECT * FROM conversations WHERE isHidden = 0 ORDER BY isPinned DESC, lastTimestamp DESC LIMIT :limit OFFSET :offset")
     suspend fun getConversationsPaged(limit: Int, offset: Int): List<ConversationEntity>
 
-    @Query("SELECT * FROM conversations WHERE isHidden = 0 AND category = :category ORDER BY isPinned DESC, lastTimestamp DESC")
+    @Query("SELECT * FROM conversations WHERE isHidden = 0 AND category = :category ORDER BY isPinned DESC, lastTimestamp DESC LIMIT 1000")
     fun getConversationsByCategory(category: MessageCategory): Flow<List<ConversationEntity>>
 
     @Query("SELECT * FROM conversations WHERE isHidden = 1 ORDER BY lastTimestamp DESC")

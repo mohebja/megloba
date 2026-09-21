@@ -76,7 +76,7 @@ object PerformanceReportManager {
             memoryFreeMb = freeMemory,
             memoryMaxMb = maxMemory,
             walJournalEnabled = true,
-            memoryMappedSizeMb = 256
+            memoryMappedSizeMb = 64
         )
     }
 
@@ -97,7 +97,7 @@ object PerformanceReportManager {
 - **تعداد گفتگوها:** ${metrics.totalConversationsCount}
 - **تاخیر کوئری ایندکس‌شده (Query Latency):** `${metrics.queryLatencyMs} ms` (هدف: زیر ۱۰ میلی‌ثانیه)
 - **حالت ژورنال SQLite WAL:** `فعال (WRITE_AHEAD_LOGGING)`
-- **حافظه نگاشت‌شده SQLite Memory-Map (mmap_size):** `256 Megabytes`
+- **حافظه نگاشت‌شده SQLite Memory-Map (mmap_size):** `64 Megabytes`
 - **همگام‌سازی دیسک (PRAGMA synchronous):** `NORMAL`
 - **ذخیره‌سازی موقت (PRAGMA temp_store):** `MEMORY`
 

@@ -30,6 +30,7 @@ import com.global.sms.ui.screens.ContactPickerScreen
 import com.global.sms.ui.screens.ConversationsScreen
 import com.global.sms.ui.screens.CrmCustomerManagementScreen
 import com.global.sms.ui.screens.Customer360Screen
+import com.global.sms.ui.screens.EnterpriseAdaptiveWorkspace
 import com.global.sms.ui.screens.EnterpriseAnalyticsScreen
 import com.global.sms.ui.screens.EnterpriseBackupScreen
 import com.global.sms.ui.screens.EnterpriseDashboardScreen
@@ -212,7 +213,10 @@ fun GlobalSmsAppNavHost(
                         onNavigateBulkSms = { navController.navigate("bulk_sms_safety") },
                         onNavigateAutomation = { navController.navigate("workflow_automation") },
                         onNavigateAnalytics = { navController.navigate("enterprise_analytics") },
-                        onNavigateSecurityAudit = { navController.navigate("security_audit_logs") }
+                        onNavigateSecurityAudit = { navController.navigate("security_audit_logs") },
+                        onNavigateAdaptiveWorkspace = { threadId ->
+                            navController.navigate("enterprise_workspace${if (threadId != null) "?threadId=$threadId" else ""}")
+                        }
                     )
                 }
                 else -> {
@@ -416,7 +420,30 @@ fun GlobalSmsAppNavHost(
                 onNavigateBulkSms = { navController.navigate("bulk_sms_safety") },
                 onNavigateAutomation = { navController.navigate("workflow_automation") },
                 onNavigateAnalytics = { navController.navigate("enterprise_analytics") },
-                onNavigateSecurityAudit = { navController.navigate("security_audit_logs") }
+                onNavigateSecurityAudit = { navController.navigate("security_audit_logs") },
+                onNavigateAdaptiveWorkspace = { threadId ->
+                    navController.navigate("enterprise_workspace${if (threadId != null) "?threadId=$threadId" else ""}")
+                }
+            )
+        }
+
+        composable(
+            route = "enterprise_workspace?threadId={threadId}",
+            arguments = listOf(navArgument("threadId") {
+                type = NavType.LongType
+                defaultValue = -1L
+            })
+        ) { backStackEntry ->
+            val enterpriseViewModel: EnterpriseViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+            val rawThreadId = backStackEntry.arguments?.getLong("threadId") ?: -1L
+            val initialThreadId = if (rawThreadId != -1L) rawThreadId else null
+            EnterpriseAdaptiveWorkspace(
+                viewModel = enterpriseViewModel,
+                initialThreadId = initialThreadId,
+                onNavigateBack = { navController.popBackStack() },
+                onOpenCustomer360 = { customerId ->
+                    navController.navigate("customer_360?customerId=$customerId")
+                }
             )
         }
 
@@ -426,9 +453,8 @@ fun GlobalSmsAppNavHost(
                 viewModel = enterpriseViewModel,
                 onBack = { navController.popBackStack() },
                 onSendMessageToCustomer = { phone ->
-                    val newThreadId = System.currentTimeMillis()
-                    viewModel.selectThread(newThreadId)
-                    navController.navigate("thread/$newThreadId")
+                    enterpriseViewModel.sendMessage(0L, phone, "سلام، در خدمت شما هستیم.")
+                    navController.navigate("enterprise_workspace")
                 },
                 onOpenCustomer360 = { customerId ->
                     navController.navigate("customer_360?customerId=$customerId")
