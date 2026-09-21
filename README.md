@@ -79,9 +79,9 @@ gradle :app:testDebugUnitTest
 
 ---
 
-## Documentation Index
+## Documentation
 
-Comprehensive documentation is available in the `/documentation/` directory:
+Project documentation and architecture guides are organized in the `/documentation/` directory:
 
 1. [Software Design Document (SDD)](documentation/SOFTWARE_DESIGN_DOCUMENT.md)
 2. [Software Requirements Specification (SRS)](documentation/SOFTWARE_REQUIREMENTS_SPECIFICATION.md)
@@ -98,16 +98,3 @@ Comprehensive documentation is available in the `/documentation/` directory:
 13. [Future Roadmap](documentation/FUTURE_ROADMAP.md)
 14. [Developer Maintenance Guide](documentation/DEVELOPER_MAINTENANCE.md)
 
-Audit reports are available in `/docs/` and root:
-- [Global SMS Professional Audit Report](GLOBAL_SMS_PROFESSIONAL_AUDIT_REPORT.md)
-- [Backup Report](backup/BACKUP_REPORT.md)
-- [Architecture Audit Report](docs/ARCHITECTURE_AUDIT_REPORT.md)
-- [Code Quality Report](docs/CODE_QUALITY_REPORT.md)
-- [SMS Engine Test Report](docs/SMS_ENGINE_TEST_REPORT.md)
-- [Database Security Report](docs/DATABASE_SECURITY_REPORT.md)
-- [UI/UX Improvement Report](docs/UI_UX_IMPROVEMENT_REPORT.md)
-- [Contact System Report](docs/CONTACT_SYSTEM_REPORT.md)
-- [Security Audit Report](docs/SECURITY_AUDIT_REPORT.md)
-- [Google Play Readiness Report](docs/GOOGLE_PLAY_READINESS_REPORT.md)
-- [Performance Report](docs/PERFORMANCE_REPORT.md)
-- [Improvement Roadmap](docs/IMPROVEMENT_ROADMAP.md)
