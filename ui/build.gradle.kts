@@ -1,7 +1,6 @@
 plugins {
   alias(libs.plugins.android.library)
   alias(libs.plugins.kotlin.compose)
-  alias(libs.plugins.google.devtools.ksp)
 }
 
 android {
@@ -46,9 +45,6 @@ dependencies {
   implementation(libs.androidx.paging.compose)
   implementation(libs.coil.compose)
   implementation(libs.androidx.work.runtime.ktx)
-  implementation(libs.hilt.android)
-  implementation(libs.androidx.hilt.navigation.compose)
-  "ksp"(libs.hilt.compiler)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
 }

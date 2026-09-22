@@ -4,4 +4,5 @@
     <exclude domain="file" path="backups" />
     <exclude domain="database" path="." />
     <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
+    <exclude domain="sharedpref" path="global_sms_db_state.xml" />
 </full-backup-content>

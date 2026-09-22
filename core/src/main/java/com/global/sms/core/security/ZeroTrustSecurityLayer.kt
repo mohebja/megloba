@@ -1,5 +1,6 @@
 package com.global.sms.core.security
 
+import com.global.sms.data.db.crypto.DatabaseEncryption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -87,10 +88,16 @@ class ZeroTrustSecurityLayer {
     }
 
     fun auditEncryptionState(): EncryptionAuditResult {
+        val status = DatabaseEncryption.status
+        val encrypted = status == DatabaseEncryption.Status.ENCRYPTED
         return EncryptionAuditResult(
-            isDatabaseEncrypted = false,
-            isSensitiveFieldsEncrypted = true,
-            cipherSuite = "AES-256-GCM field-level encryption (message body, contact name, and message snippets via Hardware KeyStore; SQLite database container is unencrypted)",
+            isDatabaseEncrypted = encrypted,
+            isSensitiveFieldsEncrypted = encrypted,
+            cipherSuite = if (encrypted) {
+                "SQLCipher full-database encryption (AES-256, per-page HMAC); the 256-bit database key is wrapped by a hardware-backed Android Keystore key (AES-256-GCM)"
+            } else {
+                "Database is NOT encrypted at rest (status: $status)"
+            },
             keyRotationStatus = "UP_TO_DATE",
             zeroDataLeakVerified = true
         )

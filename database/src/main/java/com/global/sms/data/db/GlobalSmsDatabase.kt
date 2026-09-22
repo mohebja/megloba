@@ -5,6 +5,7 @@ import com.global.sms.data.entity.*
 
 import android.content.Context
 import android.util.Log
+import com.global.sms.data.db.crypto.DatabaseEncryption
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -1019,13 +1020,27 @@ abstract class GlobalSmsDatabase : RoomDatabase() {
             }
         }
 
+        /** File name of the Room database inside the app's databases directory. */
+        const val DATABASE_NAME = "global_sms_encrypted_db"
+
+        /**
+         * The database is encrypted at rest with SQLCipher (see [DatabaseEncryption]). The first call may
+         * have to convert a legacy plaintext database, which can take a few seconds on a large history, so
+         * prefer to trigger the first call from a background thread (the Application does this at startup).
+         */
         fun getInstance(context: Context): GlobalSmsDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
+            INSTANCE?.let { return it }
+            return synchronized(this) {
+                INSTANCE?.let { return@synchronized it }
+                val appContext = context.applicationContext
+                val builder = Room.databaseBuilder(
+                    appContext,
                     GlobalSmsDatabase::class.java,
-                    "global_sms_encrypted_db"
+                    DATABASE_NAME
                 )
+                DatabaseEncryption.prepare(appContext, DATABASE_NAME)?.let { builder.openHelperFactory(it) }
+
+                val instance = builder
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,

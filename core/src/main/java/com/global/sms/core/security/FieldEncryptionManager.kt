@@ -7,11 +7,16 @@ import com.global.sms.data.entity.ScheduledMessageEntity
 import com.global.sms.security.crypto.CryptoManager
 
 /**
- * Enterprise Field-Level Encryption Manager.
+ * Legacy field-level encryption.
  *
- * Provides transparent AES-256-GCM hardware-backed field encryption for sensitive entity fields
- * (Message body, contact names, and conversation snippets) backed by the durable Android KeyStore
- * master key.
+ * The database file is now encrypted as a whole with SQLCipher (see `DatabaseEncryption`), so new rows are
+ * written as plain text *inside* the encrypted file. Encrypting individual fields on top of that only broke
+ * search and made the UI show `enc:v1:` ciphertext, so the `encryptXxx` entity wrappers below are now
+ * pass-through shims kept for source compatibility.
+ *
+ * What remains here is the read side for data written by earlier versions: [decrypt] and the `decryptXxx`
+ * wrappers still understand `enc:v1:` values, and `LegacyFieldDecryptionMigration` uses them once to convert
+ * old rows. The primitive [encrypt] is kept for tests and explicit use.
  */
 object FieldEncryptionManager {
 
@@ -79,12 +84,8 @@ object FieldEncryptionManager {
 
     // --- Entity Level Wrappers ---
 
-    fun encryptMessage(message: MessageEntity): MessageEntity {
-        return message.copy(
-            body = encrypt(message.body),
-            isEncrypted = true
-        )
-    }
+    /** Pass-through: the database file is encrypted (SQLCipher); see the class comment. */
+    fun encryptMessage(message: MessageEntity): MessageEntity = message
 
     fun decryptMessage(message: MessageEntity): MessageEntity {
         return message.copy(
@@ -93,12 +94,8 @@ object FieldEncryptionManager {
         )
     }
 
-    fun encryptConversation(conversation: ConversationEntity): ConversationEntity {
-        return conversation.copy(
-            contactName = encryptNullable(conversation.contactName),
-            lastMessage = encrypt(conversation.lastMessage)
-        )
-    }
+    /** Pass-through: the database file is encrypted (SQLCipher); see the class comment. */
+    fun encryptConversation(conversation: ConversationEntity): ConversationEntity = conversation
 
     fun decryptConversation(conversation: ConversationEntity): ConversationEntity {
         return conversation.copy(
@@ -107,17 +104,15 @@ object FieldEncryptionManager {
         )
     }
 
-    fun encryptScheduledMessage(scheduled: ScheduledMessageEntity): ScheduledMessageEntity {
-        return scheduled.copy(body = encrypt(scheduled.body))
-    }
+    /** Pass-through: the database file is encrypted (SQLCipher); see the class comment. */
+    fun encryptScheduledMessage(scheduled: ScheduledMessageEntity): ScheduledMessageEntity = scheduled
 
     fun decryptScheduledMessage(scheduled: ScheduledMessageEntity): ScheduledMessageEntity {
         return scheduled.copy(body = decrypt(scheduled.body))
     }
 
-    fun encryptQuickReply(reply: QuickReplyEntity): QuickReplyEntity {
-        return reply.copy(content = encrypt(reply.content))
-    }
+    /** Pass-through: the database file is encrypted (SQLCipher); see the class comment. */
+    fun encryptQuickReply(reply: QuickReplyEntity): QuickReplyEntity = reply
 
     fun decryptQuickReply(reply: QuickReplyEntity): QuickReplyEntity {
         return reply.copy(content = decrypt(reply.content))

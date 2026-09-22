@@ -27,7 +27,10 @@ jobs:
       - name: Verify No Dummy Configuration or Hardcoded Secrets
         run: |
           echo "Verifying absence of dummy google-services configuration..."
-          if grep -rnI "AIzaSyDummy" .; then
+          # Scan only shipped source/config directories: scanning "." also matches this
+          # very command line (and docs), which made the check fail on every run.
+          if grep -rnI --include='*.kt' --include='*.kts' --include='*.xml' --include='*.json' --include='*.properties' \
+               "AIzaSyDummy" app core database sms-engine security settings ui; then
             echo "ERROR: Dummy API key / configuration detected in workspace!"
             exit 1
           fi

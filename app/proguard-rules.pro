@@ -32,3 +32,7 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+# SQLCipher: the JNI layer binds Java classes/methods by name and signature.
+-keep,includedescriptorclasses class net.zetetic.database.** { *; }
+-dontwarn net.zetetic.database.**
+

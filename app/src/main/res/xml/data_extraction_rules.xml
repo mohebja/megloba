@@ -5,10 +5,14 @@
         <exclude domain="file" path="backups" />
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="global_sms_db_state.xml" />
     </cloud-backup>
     <device-transfer>
+        <!-- The encrypted database is unreadable on another device (its key never leaves the Keystore). -->
+        <exclude domain="database" path="." />
         <exclude domain="file" path="security" />
         <exclude domain="file" path="backups" />
         <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="global_sms_db_state.xml" />
     </device-transfer>
 </data-extraction-rules>

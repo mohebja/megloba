@@ -1,6 +1,5 @@
 plugins {
   alias(libs.plugins.android.library)
-  alias(libs.plugins.google.devtools.ksp)
 }
 
 android {
@@ -20,8 +19,6 @@ android {
 dependencies {
   implementation(project(":database"))
   implementation(project(":security"))
-  implementation(libs.hilt.android)
-  "ksp"(libs.hilt.compiler)
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.kotlinx.coroutines.android)

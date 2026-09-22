@@ -4,13 +4,16 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.global.sms.core.security.FieldEncryptionManager
+import com.global.sms.core.security.LegacyFieldDecryptionMigration
 import com.global.sms.core.security.ZeroTrustSecurityLayer
 import com.global.sms.data.db.GlobalSmsDatabase
+import com.global.sms.data.db.crypto.DatabaseEncryption
 import com.global.sms.data.entity.ConversationEntity
 import com.global.sms.data.entity.MessageCategory
 import com.global.sms.data.entity.MessageEntity
 import com.global.sms.data.entity.MessageStatus
 import com.global.sms.data.entity.MessageType
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -21,6 +24,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 
+/**
+ * The database file is encrypted as a whole (SQLCipher, verified by the instrumented
+ * `DatabaseEncryptionMigrationTest`), so these host-JVM tests cover what does not need the native library:
+ * new rows are plain text, legacy `enc:v1:` values stay readable, and the one-time conversion of legacy
+ * rows works and restores full-text search.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
 class FieldLevelEncryptionTest {
@@ -46,16 +55,23 @@ class FieldLevelEncryptionTest {
         dbFile?.delete()
     }
 
-    @Test
-    fun testFieldEncryptionPlaintextIsNotStoredInRawSqliteRow() = runBlocking {
-        val plainBody = "رمز یکبار مصرف شما: 948201. از اشتراک‌گذاری آن خودداری کنید."
-        val address = "+989123456789"
+    private fun rawBody(id: Long): Pair<String, Int> {
+        val cursor = database.openHelper.readableDatabase.query("SELECT body, isEncrypted FROM messages WHERE id = $id")
+        try {
+            assertTrue("Row must exist in SQLite", cursor.moveToFirst())
+            return cursor.getString(0) to cursor.getInt(1)
+        } finally {
+            cursor.close()
+        }
+    }
 
-        // 1. Prepare message entity encrypted with FieldEncryptionManager
-        val rawMessage = MessageEntity(
+    @Test
+    fun testNewRowsAreStoredAsPlainTextBecauseTheDatabaseFileIsEncrypted() = runBlocking {
+        val plainBody = "رمز یکبار مصرف شما: 948201. از اشتراک‌گذاری آن خودداری کنید."
+        val message = MessageEntity(
             id = 101L,
             threadId = 1L,
-            address = address,
+            address = "+989123456789",
             body = plainBody,
             timestamp = 1700000000000L,
             category = MessageCategory.OTP,
@@ -63,85 +79,40 @@ class FieldLevelEncryptionTest {
             deliveryStatus = MessageStatus.DELIVERED.code,
             type = MessageType.INBOX.code
         )
-        val encryptedMessage = FieldEncryptionManager.encryptMessage(rawMessage)
 
-        // 2. Insert into Room DAO
-        database.messageDao().insertMessage(encryptedMessage)
+        // The legacy wrapper is a pass-through now: nothing is wrapped in enc:v1: any more.
+        assertSame(message, FieldEncryptionManager.encryptMessage(message))
+        database.messageDao().insertMessage(FieldEncryptionManager.encryptMessage(message))
 
-        // 3. Query raw underlying SQLite row directly via SupportSQLiteDatabase to bypass DAO/Application layer
-        val cursor = database.openHelper.readableDatabase.query(
-            "SELECT id, address, body, isEncrypted, category, otpCode FROM messages WHERE id = 101"
-        )
-        assertTrue("Row must exist in SQLite", cursor.moveToFirst())
-
-        val rawDbBody = cursor.getString(cursor.getColumnIndexOrThrow("body"))
-        val rawDbIsEncrypted = cursor.getInt(cursor.getColumnIndexOrThrow("isEncrypted"))
-        val rawDbAddress = cursor.getString(cursor.getColumnIndexOrThrow("address"))
-        val rawDbCategory = cursor.getString(cursor.getColumnIndexOrThrow("category"))
-        val rawDbOtpCode = cursor.getString(cursor.getColumnIndexOrThrow("otpCode"))
-        cursor.close()
-
-        // 4. Assertions on raw SQLite disk representation:
-        // Plaintext must NOT appear in the database column
-        assertFalse("Raw SQLite body column must NOT contain plaintext message", rawDbBody.contains("رمز یکبار مصرف"))
-        assertFalse("Raw SQLite body column must NOT contain OTP code plaintext", rawDbBody.contains("948201"))
-        assertTrue("Raw SQLite body column must start with enc:v1: prefix", rawDbBody.startsWith("enc:v1:"))
-        assertEquals(1, rawDbIsEncrypted)
-
-        // Metadata needed for queries/indexing remains queryable
-        assertEquals(address, rawDbAddress)
-        assertEquals("OTP", rawDbCategory)
-        assertEquals("948201", rawDbOtpCode)
-
-        // 5. Assertions on DAO read path:
-        val readFromDao = database.messageDao().getMessageById(101L)
-        assertNotNull(readFromDao)
-        val decryptedMessage = FieldEncryptionManager.decryptMessage(readFromDao!!)
-        assertEquals(plainBody, decryptedMessage.body)
+        val (rawDbBody, rawIsEncrypted) = rawBody(101L)
+        assertEquals(plainBody, rawDbBody)
+        assertEquals("isEncrypted is reserved for Private Vault rows", 0, rawIsEncrypted)
+        assertEquals(plainBody, database.messageDao().getMessageById(101L)!!.body)
     }
 
     @Test
-    fun testKeyPersistenceSurvivesProcessRestartSimulation() = runBlocking {
-        val originalSecretMessage = "اطلاعات مالی بسیار محرمانه برای انتقال وجه ۱۰۰,۰۰۰,۰۰۰ ریال"
-        val messageId = 777L
+    fun testLegacyCiphertextIsStillDecryptedAcrossProcessRestart() = runBlocking {
+        val secret = "اطلاعات مالی بسیار محرمانه برای انتقال وجه ۱۰۰,۰۰۰,۰۰۰ ریال"
+        val legacyBody = FieldEncryptionManager.encrypt(secret)
+        assertTrue(legacyBody.startsWith("enc:v1:"))
 
-        // 1. Encrypt and insert into database
-        val originalMessage = MessageEntity(
-            id = messageId,
-            threadId = 10L,
-            address = "09121112233",
-            body = originalSecretMessage,
-            timestamp = 1700000000000L
+        database.messageDao().insertMessage(
+            MessageEntity(id = 777L, threadId = 10L, address = "09121112233", body = legacyBody, isEncrypted = true)
         )
-        val encryptedEntity = FieldEncryptionManager.encryptMessage(originalMessage)
-        database.messageDao().insertMessage(encryptedEntity)
-
-        // Verify the persistent master key is non-null
         val initialKey = com.global.sms.security.keystore.KeyStoreManager.getOrCreateMasterKey()
-        assertNotNull(initialKey)
 
-        // 2. Simulate complete process restart: close database instance and re-open from disk
         database.close()
-
-        val restartedDatabase = Room.databaseBuilder(context, GlobalSmsDatabase::class.java, dbFile!!.absolutePath)
+        val restarted = Room.databaseBuilder(context, GlobalSmsDatabase::class.java, dbFile!!.absolutePath)
             .allowMainThreadQueries()
             .build()
 
-        // 3. Verify that re-reading master key from storage yields the exact same secret key bytes
         val reloadedKey = com.global.sms.security.keystore.KeyStoreManager.getOrCreateMasterKey()
-        assertNotNull(reloadedKey)
         assertArrayEquals("Reloaded master key must match initial key", initialKey.encoded, reloadedKey.encoded)
 
-        // 4. Retrieve from new DB connection and decrypt using persistent Android KeyStore master key
-        val retrievedFromDisk = restartedDatabase.messageDao().getMessageById(messageId)
-        assertNotNull("Record must persist across restart", retrievedFromDisk)
-        assertTrue("Stored payload on disk is still encrypted", retrievedFromDisk!!.body.startsWith("enc:v1:"))
-
-        // KeyStore master key decrypts it perfectly after restart
-        val decrypted = FieldEncryptionManager.decryptMessage(retrievedFromDisk)
-        assertEquals(originalSecretMessage, decrypted.body)
-
-        restartedDatabase.close()
+        val stored = restarted.messageDao().getMessageById(777L)
+        assertNotNull(stored)
+        assertEquals(secret, FieldEncryptionManager.decryptMessage(stored!!).body)
+        restarted.close()
     }
 
     @Test
@@ -154,65 +125,113 @@ class FieldLevelEncryptionTest {
     }
 
     @Test
-    fun testLegacyPlaintextPassesThroughSafely() {
-        val legacyPlaintext = "پیام قدیمی کاربر قبل از فعال‌سازی رمزنگاری"
-        val decrypted = FieldEncryptionManager.decrypt(legacyPlaintext)
-        assertEquals(legacyPlaintext, decrypted)
+    fun testPlainTextPassesThroughDecryptSafely() {
+        val plain = "پیام معمولی بدون رمزنگاری فیلد"
+        assertEquals(plain, FieldEncryptionManager.decrypt(plain))
     }
 
     @Test
-    fun testConversationContactNameAndSnippetEncryption() = runBlocking {
-        val rawContactName = "سردار احمدی"
-        val rawSnippet = "سلام مهندس، جلسه فردا ساعت ۸ صبح است."
-        val threadId = 55L
-
+    fun testConversationFieldsAreStoredAsPlainText() = runBlocking {
         val conversation = ConversationEntity(
-            threadId = threadId,
+            threadId = 55L,
             address = "+989351112233",
-            contactName = rawContactName,
-            lastMessage = rawSnippet,
+            contactName = "سردار احمدی",
+            lastMessage = "سلام مهندس، جلسه فردا ساعت ۸ صبح است.",
             lastTimestamp = 1700000000000L,
             unreadCount = 2,
             category = MessageCategory.WORK
         )
+        database.conversationDao().insertOrUpdateConversation(FieldEncryptionManager.encryptConversation(conversation))
 
-        val encryptedConv = FieldEncryptionManager.encryptConversation(conversation)
-        database.conversationDao().insertOrUpdateConversation(encryptedConv)
-
-        // Raw SQLite inspection
-        val cursor = database.openHelper.readableDatabase.query(
-            "SELECT threadId, address, contactName, lastMessage, category FROM conversations WHERE threadId = 55"
-        )
-        assertTrue(cursor.moveToFirst())
-        val dbContactName = cursor.getString(cursor.getColumnIndexOrThrow("contactName"))
-        val dbLastMessage = cursor.getString(cursor.getColumnIndexOrThrow("lastMessage"))
-        cursor.close()
-
-        assertFalse("Raw contact name must not be stored as plaintext", dbContactName.contains("سردار احمدی"))
-        assertFalse("Raw last message must not be stored as plaintext", dbLastMessage.contains("جلسه فردا"))
-        assertTrue(dbContactName.startsWith("enc:v1:"))
-        assertTrue(dbLastMessage.startsWith("enc:v1:"))
-
-        // Decrypted retrieval
-        val retrieved = database.conversationDao().getConversationByThreadId(threadId)
+        val retrieved = database.conversationDao().getConversationByThreadId(55L)
         assertNotNull(retrieved)
-        val decryptedConv = FieldEncryptionManager.decryptConversation(retrieved!!)
-        assertEquals(rawContactName, decryptedConv.contactName)
-        assertEquals(rawSnippet, decryptedConv.lastMessage)
+        assertEquals(conversation.contactName, retrieved!!.contactName)
+        assertEquals(conversation.lastMessage, retrieved.lastMessage)
     }
 
     @Test
-    fun testSecurityAuditReflectsFieldLevelEncryptionAccurately() {
-        val securityLayer = ZeroTrustSecurityLayer()
-        val audit = securityLayer.auditEncryptionState()
+    fun testLegacyRowsAreConvertedInEveryTableAndFullTextSearchWorksAgain() = runBlocking {
+        val plainBody = "Your invoice 4471 is ready"
+        val legacyBody = FieldEncryptionManager.encrypt(plainBody)
+        val sqlite = database.openHelper.writableDatabase
 
-        // Database full-page encryption is false (no SQLCipher)
+        database.messageDao().insertMessage(
+            MessageEntity(id = 1L, threadId = 1L, address = "INVOICES", body = legacyBody, isEncrypted = true)
+        )
+        database.conversationDao().insertOrUpdateConversation(
+            ConversationEntity(
+                threadId = 1L,
+                address = "INVOICES",
+                contactName = FieldEncryptionManager.encrypt("Billing team"),
+                lastMessage = legacyBody
+            )
+        )
+        sqlite.execSQL(
+            "INSERT INTO scheduled_messages (address, body, scheduledTimestamp, simSlot, status) VALUES (?, ?, ?, ?, ?)",
+            arrayOf<Any>("INVOICES", legacyBody, 1700000000000L, 0, "PENDING")
+        )
+        sqlite.execSQL(
+            "INSERT INTO quick_replies (title, content) VALUES (?, ?)",
+            arrayOf<Any>("Thanks", FieldEncryptionManager.encrypt("Thanks, received!"))
+        )
+
+        // The search index still holds ciphertext, so the word cannot be found yet.
+        assertTrue(database.messageDao().searchMessagesFts("invoice").first().isEmpty())
+
+        val outcome = LegacyFieldDecryptionMigration.migrate(sqlite, timeBudgetMs = 60_000L)
+
+        assertTrue(outcome.complete)
+        assertEquals(4, outcome.converted)
+        assertEquals(0, outcome.failed)
+
+        val (body, isEncrypted) = rawBody(1L)
+        assertEquals(plainBody, body)
+        assertEquals(0, isEncrypted)
+
+        val conversation = database.conversationDao().getConversationByThreadId(1L)!!
+        assertEquals("Billing team", conversation.contactName)
+        assertEquals(plainBody, conversation.lastMessage)
+
+        sqlite.query("SELECT body FROM scheduled_messages").use {
+            assertTrue(it.moveToFirst()); assertEquals(plainBody, it.getString(0))
+        }
+        sqlite.query("SELECT content FROM quick_replies").use {
+            assertTrue(it.moveToFirst()); assertEquals("Thanks, received!", it.getString(0))
+        }
+
+        // The content-sync triggers re-indexed the updated row.
+        assertEquals(1, database.messageDao().searchMessagesFts("invoice").first().size)
+
+        // Running it again finds nothing left to do.
+        val again = LegacyFieldDecryptionMigration.migrate(sqlite, timeBudgetMs = 60_000L)
+        assertTrue(again.complete)
+        assertEquals(0, again.converted)
+    }
+
+    @Test
+    fun testUndecryptableRowsAreSkippedWithoutLoopingForever() = runBlocking {
+        val tampered = "enc:v1:dGFtcGVyZWRfYmFzZTY0X2ludmFsaWRfcGF5bG9hZA=="
+        database.messageDao().insertMessage(
+            MessageEntity(id = 5L, threadId = 2L, address = "X", body = tampered, isEncrypted = true)
+        )
+
+        val outcome = LegacyFieldDecryptionMigration.migrate(database.openHelper.writableDatabase, timeBudgetMs = 60_000L)
+
+        assertTrue(outcome.complete)
+        assertEquals(0, outcome.converted)
+        assertEquals(1, outcome.failed)
+        assertEquals(tampered, rawBody(5L).first)
+    }
+
+    @Test
+    fun testSecurityAuditReportsTheRealEncryptionState() {
+        // SQLCipher's native library is never loaded on the host JVM, so the database is not encrypted here.
+        assertNull(DatabaseEncryption.prepare(context, "host_jvm_probe.db"))
+        assertEquals(DatabaseEncryption.Status.UNAVAILABLE_ON_HOST_JVM, DatabaseEncryption.status)
+
+        val audit = ZeroTrustSecurityLayer().auditEncryptionState()
         assertFalse(audit.isDatabaseEncrypted)
-        // Sensitive fields are encrypted via Hardware KeyStore
-        assertTrue(audit.isSensitiveFieldsEncrypted)
-        // Description explicitly names fields, cipher, and explicitly notes SQLite container is unencrypted
-        assertTrue(audit.cipherSuite.contains("SQLite database container is unencrypted"))
-        assertTrue(audit.cipherSuite.contains("field-level") || audit.cipherSuite.contains("AES-256-GCM"))
-        assertTrue(audit.zeroDataLeakVerified)
+        assertFalse(audit.isSensitiveFieldsEncrypted)
+        assertTrue(audit.cipherSuite.contains("NOT encrypted"))
     }
 }

@@ -14,6 +14,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.global.sms.crash.GlobalCrashHandler
 import com.global.sms.core.crash.CrashManager
+import com.global.sms.core.security.LegacyFieldDecryptionWorker
 import com.global.sms.data.db.GlobalSmsDatabase
 import com.global.sms.database.DatabaseMaintenanceWorker
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +52,13 @@ class GlobalSmsApp : Application(), ImageLoaderFactory, Configuration.Provider {
 
         // 2. Battery & Resource-Optimized WorkManager Background Maintenance Job
         scheduleBackgroundMaintenance()
+
+        // 3. One-time conversion of rows written by the old field-level encryption (no-op once finished)
+        try {
+            LegacyFieldDecryptionWorker.enqueueIfNeeded(this)
+        } catch (e: Throwable) {
+            Log.e("GlobalSmsApp", "Failed to schedule legacy field decryption", e)
+        }
     }
 
     private fun scheduleBackgroundMaintenance() {

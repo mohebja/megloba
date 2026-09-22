@@ -28,6 +28,9 @@ dependencies {
   api(libs.androidx.room.paging)
   api(libs.androidx.paging.runtime)
   implementation(libs.androidx.work.runtime.ktx)
+  // SQLCipher: transparent AES-256 encryption of the whole database file (see data/db/crypto).
+  implementation(libs.sqlcipher.android)
+  implementation(libs.androidx.sqlite)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.moshi.kotlin)

@@ -155,8 +155,9 @@ class Sprint12_FinalRegressionTest {
         assertEquals("FULLY_TRUSTED", trust.trustStatus)
 
         val encAudit = zeroTrust.auditEncryptionState()
+        // Host-JVM unit tests never load SQLCipher, so the audit must not claim the database is encrypted.
         assertFalse(encAudit.isDatabaseEncrypted)
-        assertTrue(encAudit.isSensitiveFieldsEncrypted)
+        assertEquals(encAudit.isDatabaseEncrypted, encAudit.isSensitiveFieldsEncrypted)
         assertTrue(encAudit.zeroDataLeakVerified)
 
         val anomaly = zeroTrust.detectPermissionAnomaly(
