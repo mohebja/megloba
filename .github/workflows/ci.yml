@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint-and-static-analysis:
-    name: Lint & Static Analysis
+  static-analysis-and-lint:
+    name: Code Quality & Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,15 +23,21 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+
+      - name: Configure CI Environment Secrets
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Run Android Lint
-        run: ./gradlew lint
+        run: ./gradlew lintDebug --no-daemon --stacktrace
 
-  unit-and-integration-tests:
-    name: Unit & Integration Tests
+  unit-and-robolectric-tests:
+    name: Unit & Robolectric Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,15 +49,28 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Configure CI Environment Secrets
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest
+      - name: Run Unit and Robolectric Tests
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
 
-  assemble-debug-artifacts:
-    name: Build Debug Artifacts
-    needs: [lint-and-static-analysis, unit-and-integration-tests]
+      - name: Publish Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-test-reports
+          path: '**/build/reports/tests/**'
+
+  build-and-package:
+    name: Assemble Artifacts & Security Check
+    needs: [static-analysis-and-lint, unit-and-robolectric-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,14 +82,21 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Configure CI Environment Secrets
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      - name: Build Debug APK & Bundle
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK Artifact
+      - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GlobalSMS-Debug-Build
-          path: app/build/outputs/**/*.apk
+          name: GlobalSMS-Enterprise-Debug-APK
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14

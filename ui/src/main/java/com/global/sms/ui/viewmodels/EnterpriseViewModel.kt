@@ -95,6 +95,20 @@ class EnterpriseViewModel(application: Application) : AndroidViewModel(applicati
             initialValue = emptyList()
         )
 
+    val sentMessagesCount: StateFlow<Int> = messageDao.getSentMessageCount()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
+    val totalMessagesCount: StateFlow<Int> = messageDao.getTotalMessageCount()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
     init {
         // Populate default enterprise state and check database connections
         viewModelScope.launch {

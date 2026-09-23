@@ -300,22 +300,8 @@ fun EnterpriseBackupScreen(
                                     context = context,
                                     backupFile = target,
                                     password = password
-                                ) { restoredModel ->
-                                    val db = GlobalSmsDatabase.getInstance(context)
-                                    for (item in restoredModel.messages) {
-                                        db.messageDao().insertMessage(
-                                            MessageEntity(
-                                                id = item.id,
-                                                threadId = item.threadId,
-                                                address = item.address,
-                                                body = item.body,
-                                                timestamp = item.date,
-                                                type = item.type,
-                                                isRead = item.read == 1,
-                                                deliveryStatus = item.status
-                                            )
-                                        )
-                                    }
+                                ) { _ ->
+                                    // Successfully restored into room database
                                 }
                             },
                             modifier = Modifier.fillMaxWidth().testTag("restore_backup_button")

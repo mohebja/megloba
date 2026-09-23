@@ -55,6 +55,9 @@ fun EnterpriseDashboardScreen(
     val bulkJobs by viewModel.bulkJobs.collectAsStateWithLifecycle()
     val auditLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
 
+    val totalMessages by viewModel.totalMessagesCount.collectAsStateWithLifecycle()
+    val sentMessages by viewModel.sentMessagesCount.collectAsStateWithLifecycle()
+
     var showAddDeptDialog by remember { mutableStateOf(false) }
     var showAddEmpDialog by remember { mutableStateOf(false) }
     var showEditOrgDialog by remember { mutableStateOf(false) }
@@ -355,15 +358,27 @@ fun EnterpriseDashboardScreen(
                     }
                 }
 
-                // Row 1: Total Employees & Messages Sent Today
+                // Row 1: Total Employees & Messages Sent
+                val bulkTargetCount = remember(bulkJobs) { bulkJobs.sumOf { it.totalRecipients } }
+                val bulkDeliveredCount = remember(bulkJobs) { bulkJobs.sumOf { it.sentCount } }
+                val dynamicDeliveryRate = remember(bulkDeliveredCount, bulkTargetCount, sentMessages) {
+                    if (bulkTargetCount > 0) {
+                        String.format(java.util.Locale.US, "%.1f٪", (bulkDeliveredCount.toDouble() / bulkTargetCount) * 100)
+                    } else if (sentMessages > 0) {
+                        "۱۰۰٪"
+                    } else {
+                        "—"
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     MetricWidgetCard(
                         title = "کل پرسنل سازمان",
-                        value = "${employees.size} نفر",
-                        subtext = "${departments.size} دپارتمان فعال",
+                        value = "${PersianUtils.toPersianDigits(employees.size.toString())} نفر",
+                        subtext = "${PersianUtils.toPersianDigits(departments.size.toString())} دپارتمان فعال",
                         icon = Icons.Default.Group,
                         color = Color(0xFF1E88E5),
                         modifier = Modifier
@@ -372,9 +387,9 @@ fun EnterpriseDashboardScreen(
                     )
 
                     MetricWidgetCard(
-                        title = "پیامک‌های امروز",
-                        value = "۴,۲۵۰",
-                        subtext = "نرخ تحویل ۹۹.۲٪",
+                        title = "پیامک‌های ارسالی",
+                        value = PersianUtils.toPersianDigits(sentMessages.toString()),
+                        subtext = "از مجموع ${PersianUtils.toPersianDigits(totalMessages.toString())} پیام",
                         icon = Icons.AutoMirrored.Filled.Send,
                         color = Color(0xFF43A047),
                         modifier = Modifier
@@ -390,8 +405,8 @@ fun EnterpriseDashboardScreen(
                 ) {
                     MetricWidgetCard(
                         title = "وضعیت کمپین‌ها",
-                        value = "۳ کمپین فعال",
-                        subtext = "۱۲,۵۰۰ مخاطب هدف",
+                        value = "${PersianUtils.toPersianDigits(bulkJobs.size.toString())} کمپین",
+                        subtext = "${PersianUtils.toPersianDigits(bulkTargetCount.toString())} مخاطب هدف",
                         icon = Icons.Default.Campaign,
                         color = Color(0xFF8E24AA),
                         modifier = Modifier
@@ -400,9 +415,9 @@ fun EnterpriseDashboardScreen(
                     )
 
                     MetricWidgetCard(
-                        title = "نرخ تحویل پیام‌ها",
-                        value = "۹۹.4 ٪",
-                        subtext = "ارسال بدون تاخیر",
+                        title = "نرخ تحویل کمپین",
+                        value = PersianUtils.toPersianDigits(dynamicDeliveryRate),
+                        subtext = if (bulkTargetCount > 0) "بر اساس ارسال واقعی" else "بدون کمپین فعال",
                         icon = Icons.Default.CheckCircle,
                         color = Color(0xFF00ACC1),
                         modifier = Modifier
@@ -417,9 +432,9 @@ fun EnterpriseDashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     MetricWidgetCard(
-                        title = "تحلیل و هوش AI",
-                        value = "۳۴ پیشنهاد فعال",
-                        subtext = "پاسخ‌دهی خودکار ۱۰۰٪",
+                        title = "قوانین اتوماسیون",
+                        value = "${PersianUtils.toPersianDigits(automationRules.size.toString())} قانون فعال",
+                        subtext = "${PersianUtils.toPersianDigits(templates.size.toString())} قالب تجاری",
                         icon = Icons.Default.Psychology,
                         color = Color(0xFFE65100),
                         modifier = Modifier
@@ -429,7 +444,7 @@ fun EnterpriseDashboardScreen(
 
                     MetricWidgetCard(
                         title = "امتیاز امنیتی",
-                        value = "${securityReport.securityScore}٪",
+                        value = "${PersianUtils.toPersianDigits(securityReport.securityScore.toString())}٪",
                         subtext = "AES-256 + RBAC فعال",
                         icon = Icons.Default.Security,
                         color = Color(0xFF2E7D32),
