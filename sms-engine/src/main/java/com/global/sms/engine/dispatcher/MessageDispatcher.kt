@@ -45,7 +45,12 @@ object MessageDispatcher {
         body: String,
         timestamp: Long = System.currentTimeMillis(),
         simSlot: Int = 0,
-        subId: Int = -1
+        subId: Int = -1,
+        // True only while handling SMS_DELIVER_ACTION, i.e. while this app is the default SMS app and is
+        // therefore responsible for writing the message into content://sms. SMS_RECEIVED_ACTION means a
+        // different app is default and has already written it; writing it again here would duplicate it
+        // in every other app that reads the system SMS provider.
+        writeToSystemProvider: Boolean = false
     ) = withContext(Dispatchers.IO) {
         val db = GlobalSmsDatabase.getInstance(context)
         val messageDao = db.messageDao()
@@ -95,6 +100,22 @@ object MessageDispatcher {
 
         val encryptedMessage = FieldEncryptionManager.encryptMessage(message)
         val messageId = messageDao.insertMessage(encryptedMessage)
+
+        // 3b. Mirror into the system SMS provider (content://sms) when this app is the default SMS app.
+        if (writeToSystemProvider && com.global.sms.engine.provider.SystemSmsProvider.isDefaultSmsApp(context)) {
+            try {
+                com.global.sms.engine.provider.SystemSmsProvider.insertIncoming(
+                    context = context,
+                    address = address,
+                    body = body,
+                    timestampMillis = timestamp,
+                    subId = subId,
+                    isRead = false
+                )?.let { systemSmsId -> messageDao.updateSystemSmsId(messageId, systemSmsId) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to mirror incoming SMS into the system provider", e)
+            }
+        }
 
         // 4. Update Conversation
         val existingConv = conversationDao.getConversationByThreadId(activeThreadId)

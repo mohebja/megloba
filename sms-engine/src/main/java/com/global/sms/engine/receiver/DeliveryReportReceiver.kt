@@ -71,25 +71,27 @@ class DeliveryReportReceiver : BroadcastReceiver() {
                                         status = MessageStatus.SENT.code,
                                         type = MessageType.SENT.code
                                     )
+                                    messageDao.getSystemSmsId(messageId)?.let { com.global.sms.engine.provider.SystemSmsProvider.markSent(context, it) }
                                     Log.d(TAG, "Message $messageId sent successfully (single part)")
                                 } else {
                                     val partsSet = pendingSentParts.computeIfAbsent(messageId) {
-                                        Collections.newSetFromMap(ConcurrentHashMap())
-                                    }
-                                    partsSet.add(partIndex)
+                                         Collections.newSetFromMap(ConcurrentHashMap())
+                                     }
+                                     partsSet.add(partIndex)
 
-                                    if (partsSet.size >= totalParts) {
-                                        pendingSentParts.remove(messageId)
-                                        messageDao.updateMessageDeliveryAndType(
-                                            messageId = messageId,
-                                            status = MessageStatus.SENT.code,
-                                            type = MessageType.SENT.code
-                                        )
-                                        Log.d(TAG, "Message $messageId ($totalParts/$totalParts parts) sent successfully")
-                                    } else {
-                                        Log.d(TAG, "Message $messageId part $partIndex succeeded (${partsSet.size}/$totalParts parts completed)")
-                                    }
-                                }
+                                     if (partsSet.size >= totalParts) {
+                                         pendingSentParts.remove(messageId)
+                                         messageDao.updateMessageDeliveryAndType(
+                                             messageId = messageId,
+                                             status = MessageStatus.SENT.code,
+                                             type = MessageType.SENT.code
+                                         )
+                                         messageDao.getSystemSmsId(messageId)?.let { com.global.sms.engine.provider.SystemSmsProvider.markSent(context, it) }
+                                         Log.d(TAG, "Message $messageId ($totalParts/$totalParts parts) sent successfully")
+                                     } else {
+                                         Log.d(TAG, "Message $messageId part $partIndex succeeded (${partsSet.size}/$totalParts parts completed)")
+                                     }
+                                 }
                             } else {
                                 pendingSentParts.remove(messageId)
                                 Log.d(TAG, "Message $messageId part $partIndex succeeded but message was already marked failed/retrying")
@@ -111,6 +113,7 @@ class DeliveryReportReceiver : BroadcastReceiver() {
                                     messageId = messageId,
                                     status = MessageStatus.DELIVERED.code
                                 )
+                                messageDao.getSystemSmsId(messageId)?.let { com.global.sms.engine.provider.SystemSmsProvider.markDelivered(context, it) }
                                 Log.d(TAG, "Message $messageId delivered successfully")
                             } else {
                                 val partsSet = pendingDeliveredParts.computeIfAbsent(messageId) {
@@ -124,6 +127,7 @@ class DeliveryReportReceiver : BroadcastReceiver() {
                                         messageId = messageId,
                                         status = MessageStatus.DELIVERED.code
                                     )
+                                    messageDao.getSystemSmsId(messageId)?.let { com.global.sms.engine.provider.SystemSmsProvider.markDelivered(context, it) }
                                     Log.d(TAG, "Message $messageId ($totalParts/$totalParts parts) delivered successfully")
                                 }
                             }

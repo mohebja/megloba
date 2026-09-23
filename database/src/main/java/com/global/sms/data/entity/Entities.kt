@@ -80,7 +80,9 @@ data class MessageEntity(
     val attachmentUri: String? = null,
     val mimeType: String? = null,
     val subId: Int = -1,
-    val isMms: Boolean = false
+    val isMms: Boolean = false,
+    /** Row id of the matching entry in the system `content://sms` provider, if this app wrote one (see SystemSmsProvider). */
+    val systemSmsId: Long? = null
 )
 
 @Entity(

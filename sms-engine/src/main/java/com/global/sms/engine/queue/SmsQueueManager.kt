@@ -59,11 +59,12 @@ object SmsQueueManager {
         val encryptedConv = FieldEncryptionManager.encryptConversation(newConv)
         conversationDao.insertOrUpdateConversation(encryptedConv)
 
+        val sendTimestamp = System.currentTimeMillis()
         val message = MessageEntity(
             threadId = activeThreadId,
             address = address,
             body = body,
-            timestamp = System.currentTimeMillis(),
+            timestamp = sendTimestamp,
             type = MessageType.OUTBOX.code,
             simSlot = simSlot,
             deliveryStatus = MessageStatus.PENDING.code,
@@ -76,6 +77,23 @@ object SmsQueueManager {
 
         val encryptedMessage = FieldEncryptionManager.encryptMessage(message)
         val messageId = messageDao.insertMessage(encryptedMessage)
+
+        // Mirror into the system SMS provider (content://sms) as an Outbox row when this app is the
+        // default SMS app. MMS is out of scope here: content://mms uses PDU parts, not plain columns.
+        if (!message.isMms && com.global.sms.engine.provider.SystemSmsProvider.isDefaultSmsApp(context)) {
+            try {
+                com.global.sms.engine.provider.SystemSmsProvider.insertOutbox(
+                    context = context,
+                    address = address,
+                    body = body,
+                    timestampMillis = sendTimestamp,
+                    subId = subId
+                )?.let { systemSmsId -> messageDao.updateSystemSmsId(messageId, systemSmsId) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to mirror outbox SMS into the system provider", e)
+            }
+        }
+
         processPendingQueue(context)
         return@withContext messageId
     }

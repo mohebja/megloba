@@ -43,6 +43,8 @@ object SmsRetryManager {
                 status = MessageStatus.FAILED.code,
                 type = MessageType.FAILED.code
             )
+            val currentMsg = messageDao.getMessageById(messageId)
+            currentMsg?.systemSmsId?.let { com.global.sms.engine.provider.SystemSmsProvider.markFailed(context, it) }
         }
     }
 

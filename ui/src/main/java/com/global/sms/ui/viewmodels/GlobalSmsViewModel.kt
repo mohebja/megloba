@@ -647,6 +647,7 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
         if (threadId != null) {
             viewModelScope.launch {
                 messageDao.markThreadAsRead(threadId)
+                markThreadReadInSystemProvider(threadId)
             }
         }
     }
@@ -739,6 +740,7 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             conversationDao.markConversationRead(threadId)
             messageDao.markThreadAsRead(threadId)
+            markThreadReadInSystemProvider(threadId)
         }
     }
 
@@ -753,6 +755,7 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
             if (conversation.unreadCount > 0) {
                 conversationDao.markConversationRead(conversation.threadId)
                 messageDao.markThreadAsRead(conversation.threadId)
+                markThreadReadInSystemProvider(conversation.threadId)
             } else {
                 conversationDao.markConversationUnread(conversation.threadId)
             }
@@ -854,14 +857,27 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun deleteConversation(threadId: Long) {
         viewModelScope.launch {
+            // Read the linked system-provider rows before the local rows are gone, so the deletion can
+            // still be mirrored into content://sms for anything this app wrote there as the default SMS app.
+            val systemSmsIds = messageDao.getSystemSmsIdsForThread(threadId)
             conversationDao.deleteConversation(threadId)
             messageDao.deleteThreadMessages(threadId)
+            com.global.sms.engine.provider.SystemSmsProvider.deleteAll(getApplication(), systemSmsIds)
         }
     }
 
     fun deleteMessage(messageId: Long) {
         viewModelScope.launch {
+            val systemSmsId = messageDao.getSystemSmsId(messageId)
             messageDao.deleteMessage(messageId)
+            systemSmsId?.let { com.global.sms.engine.provider.SystemSmsProvider.delete(getApplication(), it) }
+        }
+    }
+
+    /** Marks every system-provider row for this thread read too, mirroring `messageDao.markThreadAsRead`. */
+    private suspend fun markThreadReadInSystemProvider(threadId: Long) {
+        messageDao.getSystemSmsIdsForThread(threadId).forEach {
+            com.global.sms.engine.provider.SystemSmsProvider.markRead(getApplication(), it, isRead = true)
         }
     }
 
@@ -874,7 +890,9 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun clearAllSpamMessages() {
         viewModelScope.launch {
+            val systemSmsIds = messageDao.getSystemSmsIdsForSpam()
             messageDao.deleteAllSpamMessages()
+            com.global.sms.engine.provider.SystemSmsProvider.deleteAll(getApplication(), systemSmsIds)
         }
     }
 

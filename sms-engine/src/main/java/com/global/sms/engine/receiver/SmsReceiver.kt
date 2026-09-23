@@ -56,6 +56,12 @@ class SmsReceiver : BroadcastReceiver() {
             ?.coerceAtLeast(0)
             ?: 0
 
+        // SMS_DELIVER is only ever broadcast to the current default SMS app, which is responsible for
+        // storing the message in content://sms. SMS_RECEIVED means a different app is default and has
+        // already stored it: writing it again here would create a duplicate for everyone reading that
+        // provider (other apps, restores, "recent messages" surfaces, ...).
+        val isDefaultAppDeliver = action == Telephony.Sms.Intents.SMS_DELIVER_ACTION
+
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             try {
@@ -65,7 +71,8 @@ class SmsReceiver : BroadcastReceiver() {
                     body = fullBody,
                     timestamp = timestamp,
                     simSlot = simSlot,
-                    subId = subId
+                    subId = subId,
+                    writeToSystemProvider = isDefaultAppDeliver
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing incoming SMS in MessageDispatcher", e)

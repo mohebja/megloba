@@ -148,6 +148,18 @@ interface MessageDao {
     @Query("UPDATE messages SET category = :category WHERE threadId = :threadId")
     suspend fun setThreadCategory(threadId: Long, category: MessageCategory)
 
+    @Query("SELECT systemSmsId FROM messages WHERE id = :messageId")
+    suspend fun getSystemSmsId(messageId: Long): Long?
+
+    @Query("SELECT systemSmsId FROM messages WHERE threadId = :threadId AND systemSmsId IS NOT NULL")
+    suspend fun getSystemSmsIdsForThread(threadId: Long): List<Long>
+
+    @Query("SELECT systemSmsId FROM messages WHERE category = 'SPAM' AND systemSmsId IS NOT NULL")
+    suspend fun getSystemSmsIdsForSpam(): List<Long>
+
+    @Query("UPDATE messages SET systemSmsId = :systemSmsId WHERE id = :messageId")
+    suspend fun updateSystemSmsId(messageId: Long, systemSmsId: Long?)
+
     @Query("DELETE FROM messages WHERE id = :messageId")
     suspend fun deleteMessage(messageId: Long)
 
