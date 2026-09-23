@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.global.sms.data.entity.MessageEntity
 import com.global.sms.ui.smart.screens.SmartConversationsScreen
+import com.global.sms.ui.theme.GlobalSmsDimens
 import com.global.sms.ui.viewmodels.GlobalSmsViewModel
 
 enum class ScreenWindowType {
@@ -62,11 +63,12 @@ fun AdaptiveConversationLayout(
             )
         } else {
             // Two-Pane Tablet / Foldable Split View
+            val listPaneWidth = (maxWidth * 0.38f).coerceIn(320.dp, 420.dp)
             Row(modifier = Modifier.fillMaxSize()) {
-                // Left Pane: Conversations & Navigation List (40% width or fixed 380dp)
+                // Left Pane: Conversations & Navigation List (Responsive width ~38%, clamped to 320-420dp)
                 Box(
                     modifier = Modifier
-                        .width(380.dp)
+                        .width(listPaneWidth)
                         .fillMaxHeight()
                 ) {
                     SmartConversationsScreen(
@@ -117,15 +119,16 @@ fun AdaptiveConversationLayout(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                "یک گفتگو را از لیست سمت راست انتخاب کنید",
+                                "یک گفتگو را برای نمایش انتخاب کنید",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "نمایش دو پنله مخصوص تبلت، نمایشگرهای عریض و گوشی‌های تاشو",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.outline
+                                "برای شروع، یکی از گفتگوهای پنل کناری را انتخاب کنید.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

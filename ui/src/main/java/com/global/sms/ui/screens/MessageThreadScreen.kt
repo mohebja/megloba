@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -368,7 +369,9 @@ fun MessageThreadScreen(
             // Input Bar
             Surface(
                 tonalElevation = 3.dp,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .imePadding()
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     // Segment Counter info bar
@@ -494,18 +497,21 @@ fun MessageThreadScreen(
                         Spacer(modifier = Modifier.width(6.dp))
 
                         IconButton(
+                            enabled = messageText.isNotBlank(),
                             onClick = {
-                                if (messageText.isNotBlank()) {
-                                    viewModel.sendMessage(address, messageText, selectedSimSlot)
-                                    messageText = ""
-                                }
+                                viewModel.sendMessage(address, messageText.trim(), selectedSimSlot)
+                                messageText = ""
                             },
                             modifier = Modifier.testTag("send_button")
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "ارسال",
-                                tint = MaterialTheme.colorScheme.primary
+                                contentDescription = "ارسال پیام",
+                                tint = if (messageText.isNotBlank()) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
                             )
                         }
                     }

@@ -78,7 +78,9 @@ fun ClassicMessageThreadScreen(
 
                 Surface(
                     tonalElevation = 2.dp,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .imePadding()
                 ) {
                     Row(
                         modifier = Modifier
@@ -98,20 +100,26 @@ fun ClassicMessageThreadScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
+                        val canSend = inputText.isNotBlank()
+
                         IconButton(
                             onClick = {
-                                if (inputText.isNotBlank()) {
+                                val trimmed = inputText.trim()
+                                if (trimmed.isNotBlank()) {
                                     viewModel.sendMessage(
                                         address = contactTitle,
-                                        body = inputText,
+                                        body = trimmed,
                                         simSlot = 0
                                     )
                                     inputText = ""
                                 }
                             },
+                            enabled = canSend,
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                disabledContentColor = MaterialTheme.colorScheme.outline
                             ),
                             modifier = Modifier.testTag("classic_send_button")
                         ) {

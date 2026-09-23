@@ -76,6 +76,7 @@ fun GlobalSmsTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
+            shapes = GlobalSmsShapes,
             content = content
         )
     }

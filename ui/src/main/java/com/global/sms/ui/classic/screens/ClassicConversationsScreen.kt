@@ -1,7 +1,6 @@
 package com.global.sms.ui.classic.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -109,14 +108,11 @@ fun ClassicConversationsScreen(
                                         modifier = Modifier
                                             .testTag("classic_conversation_item_${conversation.threadId}")
                                             .testTag("classic_conversation_card_${conversation.threadId}")
-                                            .combinedClickable(
-                                                onClick = { onOpenThread(conversation.threadId) },
-                                                onLongClick = { selectedConversationForMenu = conversation }
-                                            )
                                     ) {
                                         ClassicThreadCard(
                                             conversation = conversation,
-                                            onClick = { onOpenThread(conversation.threadId) }
+                                            onClick = { onOpenThread(conversation.threadId) },
+                                            onLongClick = { selectedConversationForMenu = conversation }
                                         )
                                     }
                                 }
