@@ -42,7 +42,11 @@ object SmartSearchEngine {
         val calendar = Calendar.getInstance()
         val now = System.currentTimeMillis()
 
-        var isBankQuery = cleanQuery.contains("بانک") || cleanQuery.contains("وام") || cleanQuery.contains("تراکنش")
+        var isBankQuery = cleanQuery.contains("بانک") || cleanQuery.contains("وام") || cleanQuery.contains("تراکنش") ||
+                cleanQuery.contains("واریز") || cleanQuery.contains("برداشت") || cleanQuery.contains("حساب") ||
+                cleanQuery.contains("bank") || cleanQuery.contains("transaction")
+        var isOtpQuery = cleanQuery.contains("otp") || cleanQuery.contains("verification") || cleanQuery.contains("رمز") ||
+                cleanQuery.contains("کد ورود") || cleanQuery.contains("کد تایید") || cleanQuery.contains("فعالسازی")
         var isRecentWeek = cleanQuery.contains("این هفته") || cleanQuery.contains("هفته جاری") || cleanQuery.contains("this week")
         var isImportantOnly = cleanQuery.contains("مهم") || cleanQuery.contains("فوری") || cleanQuery.contains("important")
         
@@ -55,6 +59,7 @@ object SmartSearchEngine {
 
         val matchedKeywords = mutableListOf<String>()
         if (isBankQuery) matchedKeywords.add("بانک/امور مالی")
+        if (isOtpQuery) matchedKeywords.add("کد ورود/اعتبارسنجی (OTP)")
         if (isRecentWeek) matchedKeywords.add("محدوده زمانی: این هفته")
         if (isImportantOnly) matchedKeywords.add("پیام‌های مهم/فوری")
         targetContact?.let { matchedKeywords.add("مخاطب: $it") }
@@ -62,7 +67,10 @@ object SmartSearchEngine {
         val oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000L)
 
         val filtered = messages.filter { msg ->
-            if (isBankQuery && msg.category != MessageCategory.BANK && !msg.body.contains("وام") && !msg.body.contains("بانک")) {
+            if (isBankQuery && msg.category != MessageCategory.BANK && !msg.body.contains("وام") && !msg.body.contains("بانک") && !msg.body.contains("واریز") && !msg.body.contains("تراکنش") && !msg.body.contains("حساب")) {
+                return@filter false
+            }
+            if (isOtpQuery && msg.category != MessageCategory.OTP && msg.otpCode == null && !msg.body.contains("کد ورود") && !msg.body.contains("کد تایید")) {
                 return@filter false
             }
             if (isRecentWeek && msg.timestamp < oneWeekAgo) {

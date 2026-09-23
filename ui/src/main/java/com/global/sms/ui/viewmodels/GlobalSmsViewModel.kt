@@ -287,6 +287,14 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
     val vaultSecurityManager = PrivateVaultSecurityManager(application)
     val ttsManager = TtsManager(application)
 
+    private val _hasCompletedOnboarding = MutableStateFlow(securePrefsManager.hasCompletedOnboarding)
+    val hasCompletedOnboarding: StateFlow<Boolean> = _hasCompletedOnboarding.asStateFlow()
+
+    fun completeOnboarding() {
+        securePrefsManager.hasCompletedOnboarding = true
+        _hasCompletedOnboarding.value = true
+    }
+
     // Security & Compliance Audit State
     val deviceSecurityReport: StateFlow<SecurityReport> = MutableStateFlow(
         DeviceSecurityScanner.scanDevice(application)

@@ -95,6 +95,10 @@ class SecurePreferencesManager(private val context: Context) {
         get() = prefs.getLong(KEY_LAST_AUTO_BACKUP_TIMESTAMP, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_AUTO_BACKUP_TIMESTAMP, value).apply()
 
+    var hasCompletedOnboarding: Boolean
+        get() = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+        set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, value).apply()
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }
@@ -113,5 +117,6 @@ class SecurePreferencesManager(private val context: Context) {
         private const val KEY_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
         private const val KEY_AUTO_BACKUP_INTERVAL_HOURS = "auto_backup_interval_hours"
         private const val KEY_LAST_AUTO_BACKUP_TIMESTAMP = "last_auto_backup_timestamp"
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
     }
 }

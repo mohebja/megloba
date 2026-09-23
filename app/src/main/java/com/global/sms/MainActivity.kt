@@ -43,6 +43,7 @@ import com.global.sms.ui.viewmodels.EnterpriseViewModel
 import com.global.sms.ui.screens.MessageStatsScreen
 import com.global.sms.ui.screens.MessageThreadScreen
 import com.global.sms.ui.screens.MultiContactComposeScreen
+import com.global.sms.ui.screens.OnboardingFlowScreen
 import com.global.sms.ui.screens.PerformanceReportScreen
 import com.global.sms.ui.screens.PrivateVaultScreen
 import com.global.sms.ui.screens.ScheduledMessagesScreen
@@ -166,6 +167,7 @@ fun GlobalSmsAppNavHost(
 ) {
     val navController = rememberNavController()
     val showDefaultSmsDialog by viewModel.showDefaultSmsDialog.collectAsStateWithLifecycle()
+    val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsStateWithLifecycle()
 
     com.global.sms.ui.components.DefaultSmsRoleDialog(
         showDialog = showDefaultSmsDialog,
@@ -179,10 +181,23 @@ fun GlobalSmsAppNavHost(
             SplashScreen(
                 isReady = isDbReady,
                 onSplashFinished = {
-                    navController.navigate("conversations") {
+                    val destination = if (hasCompletedOnboarding) "conversations" else "onboarding"
+                    navController.navigate(destination) {
                         popUpTo("splash") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("onboarding") {
+            OnboardingFlowScreen(
+                onFinishOnboarding = {
+                    viewModel.completeOnboarding()
+                    navController.navigate("conversations") {
+                        popUpTo("onboarding") { inclusive = true }
+                    }
+                },
+                onRequestDefaultSms = { onRequestDefaultSms() }
             )
         }
 
