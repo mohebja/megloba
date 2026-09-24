@@ -1,8 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    app/src/main/res/xml/backup_rules.xml
+
+    قواعد پشتیبان‌گیری برای Android 11 و پایین‌تر.
+    با وجود allowBackup=false در manifest، این فایل به‌عنوان
+    مستندسازی و لایه دوم محافظت عمل می‌کند.
+
+    ⚠️ هیچ داده SMS، contact، یا کلید رمزنگاری نباید backup شود.
+    ⚠️ پشتیبان‌گیری رمزنگاری‌شده اختصاصی (EncryptedBackupManager)
+       جایش را می‌گیرد.
+-->
 <full-backup-content>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--  مستثنی‌سازی: فایل‌هایی که هرگز نباید backup شوند     -->
+    <!-- ═══════════════════════════════════════════════════ -->
+
+    <!-- دیتابیس‌های SQLCipher — کلید جدا در noBackupFilesDir -->
+    <exclude domain="database" path="." />
+
+    <!-- SharedPreferences (شامل SecurePreferences) -->
+    <exclude domain="sharedpref" path="." />
+
+    <!-- فایل‌های رمزنگاری داخلی (Keystore master key wrapper) -->
     <exclude domain="file" path="security" />
     <exclude domain="file" path="backups" />
-    <exclude domain="database" path="." />
-    <exclude domain="sharedpref" path="global_sms_secure_prefs.xml" />
-    <exclude domain="sharedpref" path="global_sms_db_state.xml" />
+
+    <!-- فایل‌های کش -->
+    <exclude domain="root" path="cache" />
+    <exclude domain="file" path="cache" />
+
+    <!-- دایرکتوری no_backup (توسط سیستم مستثنی می‌شود ولی اینجا صریحاً ذکر شده) -->
+    <exclude domain="no_backup" path="." />
+
 </full-backup-content>

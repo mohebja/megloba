@@ -23,8 +23,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.TimeUnit
+import com.global.sms.di.AppContainer
 
 class GlobalSmsApp : Application(), ImageLoaderFactory, Configuration.Provider {
+
+    val container: AppContainer by lazy { AppContainer(this) }
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()

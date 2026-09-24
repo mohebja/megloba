@@ -30,4 +30,26 @@ val AmoledBackground = Color(0xFF000000)
 val AmoledSurface = Color(0xFF0D0D0D)
 val AmoledOnSurfaceVariant = Color(0xFFC4C7D0)
 
+// Semantic Status Colors
+val StatusSuccess = Color(0xFF2E7D32)
+val StatusSuccessContainer = Color(0xFFE8F5E9)
+val StatusSuccessDarkContainer = Color(0xFF1B3B22)
+
+val StatusWarning = Color(0xFFED6C02)
+val StatusWarningContainer = Color(0xFFFFF4E5)
+val StatusWarningDarkContainer = Color(0xFF3E2714)
+
+val StatusError = Color(0xFFD32F2F)
+val StatusErrorContainer = Color(0xFFFFEBEE)
+val StatusErrorDarkContainer = Color(0xFF3C1518)
+
+val StatusInfo = Color(0xFF0288D1)
+val StatusInfoContainer = Color(0xFFE1F5FE)
+val StatusInfoDarkContainer = Color(0xFF0C2B3F)
+
+// Product Mode Palette
+val ClassicModeColor = Color(0xFF546E7A)
+val SmartModeColor = Color(0xFF7C4DFF)
+val EnterpriseModeColor = Color(0xFF00897B)
+
 

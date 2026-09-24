@@ -125,10 +125,10 @@ interface MessageDao {
     @Query("SELECT CAST(strftime('%H', timestamp / 1000, 'unixepoch') AS INTEGER) AS hour, COUNT(*) AS count FROM messages GROUP BY hour ORDER BY hour ASC")
     suspend fun getHourlyDistribution(): List<HourCountRow>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMessage(message: MessageEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMessagesBatch(messages: List<MessageEntity>): List<Long>
 
     @Transaction

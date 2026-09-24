@@ -1,12 +1,11 @@
 package com.global.sms.ui.screens
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +17,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.global.sms.core.ai.agent.CommunicationAgent
+import com.global.sms.ui.components.GlobalSmsTopBar
+import com.global.sms.ui.components.OfflineNoticeBanner
+import com.global.sms.ui.theme.StatusError
+import com.global.sms.ui.theme.StatusErrorContainer
+import com.global.sms.ui.theme.StatusErrorDarkContainer
+import com.global.sms.ui.theme.StatusInfo
+import com.global.sms.ui.theme.StatusSuccess
+import com.global.sms.ui.theme.StatusSuccessContainer
+import com.global.sms.ui.theme.StatusSuccessDarkContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,20 +36,23 @@ fun AIAgentSecurityDashboard(
     onNavigateBack: () -> Unit = {}
 ) {
     val isKillSwitchActive by CommunicationAgent.isKillSwitchActive.collectAsState()
+    val isDark = isSystemInDarkTheme()
+
+    val killSwitchCardBg = if (isKillSwitchActive) {
+        if (isDark) StatusErrorDarkContainer else StatusErrorContainer
+    } else {
+        if (isDark) StatusSuccessDarkContainer else StatusSuccessContainer
+    }
+
+    val killSwitchTextColor = if (isKillSwitchActive) StatusError else StatusSuccess
 
     Scaffold(
         modifier = Modifier.testTag("ai_agent_security_dashboard"),
         topBar = {
-            TopAppBar(
-                title = { Text("مرکز کنترل امنیت عامل هوش مصنوعی", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.testTag("ai_agent_security_back_button")
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت")
-                    }
-                }
+            GlobalSmsTopBar(
+                title = "مرکز کنترل امنیت عامل هوش مصنوعی",
+                subtitle = "سیاست‌های ایمنی و حریم خصوصی ۱۰۰٪ آفلاین",
+                onNavigationClick = onNavigateBack
             )
         }
     ) { padding ->
@@ -55,9 +66,7 @@ fun AIAgentSecurityDashboard(
             // Kill Switch Card
             item {
                 Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isKillSwitchActive) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = killSwitchCardBg),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -73,18 +82,19 @@ fun AIAgentSecurityDashboard(
                                 text = "کلید توقف اضطراری (Kill Switch)",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
-                                color = if (isKillSwitchActive) Color(0xFFC62828) else Color(0xFF2E7D32)
+                                color = killSwitchTextColor
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = if (isKillSwitchActive) "عامل هوش مصنوعی کاملاً متوقف شده است." else "عامل هوش مصنوعی در حال پایش و پیشنهاد خودکار است.",
                                 fontSize = 12.sp,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Switch(
                             checked = isKillSwitchActive,
-                            onCheckedChange = { CommunicationAgent.setKillSwitch(it) }
+                            onCheckedChange = { CommunicationAgent.setKillSwitch(it) },
+                            modifier = Modifier.testTag("ai_kill_switch")
                         )
                     }
                 }
@@ -113,6 +123,10 @@ fun AIAgentSecurityDashboard(
                 }
             }
 
+            item {
+                OfflineNoticeBanner(message = "بدون نیاز به اینترنت و بدون ارسال کوچک‌ترین داده به خارج از دستگاه.")
+            }
+
             // AI Statistics Summary
             item {
                 Row(
@@ -122,19 +136,19 @@ fun AIAgentSecurityDashboard(
                     SecurityStatBox(
                         title = "اقدامات پیشنهادی",
                         value = suggestedActionsCount.toString(),
-                        color = Color(0xFF1976D2),
+                        color = StatusInfo,
                         modifier = Modifier.weight(1f)
                     )
                     SecurityStatBox(
                         title = "تأیید کاربر",
                         value = userConfirmedActionsCount.toString(),
-                        color = Color(0xFF388E3C),
+                        color = StatusSuccess,
                         modifier = Modifier.weight(1f)
                     )
                     SecurityStatBox(
                         title = "مسدود شده",
                         value = blockedThreatsCount.toString(),
-                        color = Color(0xFFD32F2F),
+                        color = StatusError,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -155,7 +169,10 @@ fun AIAgentSecurityDashboard(
             ) { item ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 ) {
                     Row(
                         modifier = Modifier
@@ -166,12 +183,12 @@ fun AIAgentSecurityDashboard(
                     ) {
                         Column {
                             Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text(item.desc, fontSize = 12.sp, color = Color.Gray)
+                            Text(item.desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Icon(
                             imageVector = if (item.isGranted) Icons.Default.CheckCircle else Icons.Default.Cancel,
                             contentDescription = null,
-                            tint = if (item.isGranted) Color(0xFF388E3C) else Color(0xFFD32F2F)
+                            tint = if (item.isGranted) StatusSuccess else StatusError
                         )
                     }
                 }
@@ -186,7 +203,7 @@ private data class PermissionItem(val name: String, val desc: String, val isGran
 private fun SecurityStatBox(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.12f)),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(
