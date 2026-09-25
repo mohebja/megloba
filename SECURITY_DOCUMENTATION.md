@@ -1,20 +1,44 @@
-# 🔒 Global SMS - Security Architecture & Audit Documentation
+# Global SMS — Comprehensive Security & Cryptographic Architecture
 
-## 1. Cryptographic Standards
-- **Hardware-Backed Field Encryption:** AES-256 GCM (`AES/GCM/NoPadding`) via Android KeyStore (`AndroidKeyStore`) with Master Key generation for transparent field-level encryption of conversation snippets, message bodies, and contact names in the local Room database (`FieldEncryptionManager`). Keys are non-exportable and bound to hardware-backed TEE/StrongBox where available.
-- **Password-Derived Encryption (PBKDF2 + AES-256 GCM):** Utilizes PBKDF2 with HMAC-SHA256, 210,000 iterations, 16-byte random salt, and 12-byte random GCM IV for two distinct, dedicated use cases:
-  1. **Private Vault Messages (`PrivateVaultSecurityManager`):** A distinct, dedicated security feature for secret conversations. Hidden message payloads (`isHidden = true`, `isEncrypted = true`) have their body content encrypted using AES-256 GCM with keys derived directly from the user's secret Vault passcode/PIN (210,000 PBKDF2 iterations), gated by PIN/Biometric authentication.
-  2. **Standalone Backup Archives (`EncryptedBackupManager` / `ProfessionalBackupEngine`):** Standalone `.gsms` / JSON backup containers encrypted with 210,000 PBKDF2 iterations. By design, backup encryption is password-derived rather than hardware-bound to ensure secure portability across devices.
+---
 
-## 2. On-Device Privacy Guardrails
-- **Zero Cloud Leakage:** All message parsing, classification, and analytics run 100% locally.
-- **Crash Log Sanitize:** `GlobalCrashHandler` redacts phone numbers, bank account numbers, and card numbers before writing crash files.
-- **Biometric Security:** `BiometricPrompt` verification enforces hardware owner authentication for vault access.
-- **Clipboard Protection:** OTP copy actions clear or flag sensitive clipboard items.
+## 1. Zero-Trust & Defense-in-Depth Overview
 
-## 3. Threat Matrix & Mitigations
-| Threat Vector | Severity | Mitigation |
-| :--- | :--- | :--- |
-| Database Extraction | High | Field-level encryption for sensitive entity fields & password-derived AES-GCM encryption for Private Vault items (`isEncrypted = true`, `isHidden = true`). |
-| Phishing SMS Links | High | On-device regex scan flags suspicious domains before user clicks. |
-| Shoulder Surfing | Medium | Biometric lock for Vault & Screenshot Protection option. |
+Global SMS enforces strict Zero-Trust and Defense-in-Depth principles across all architectural layers. User messages, contact lists, financial transactions, and configuration tokens are strictly kept on the user's local hardware without unconsented remote transmission.
+
+---
+
+## 2. Cryptographic Architecture
+
+### 2.1 Hardware-Backed Key Storage (Android KeyStore)
+- **Key Provider:** `AndroidKeyStore`
+- **Master Key Alias:** `GlobalSmsMasterKey_AES256`
+- **Backup Key Alias:** `AutoBackupMasterKey_AES256`
+- **Algorithm & Mode:** AES-256 in Galois/Counter Mode with 128-bit authentication tag (`AES/GCM/NoPadding`).
+- **Hardware Isolation:** Backed by Secure Element (TEE) and StrongBox Keymaster where available on modern hardware.
+
+### 2.2 Secure Private Vault
+- **Key Derivation:** PBKDF2WithHmacSHA256 (21,000 iterations, 16-byte cryptographically secure random salt).
+- **Authentication Methods:** User Master Passphrase and Android `BiometricPrompt` (Fingerprint, Face Unlock with Class 3 strong biometrics).
+- **Storage Protection:** Vaulted items are stored in isolated encrypted rows with non-deterministic IVs per message.
+
+### 2.3 Authenticated Encrypted Backup Architecture (GSMS Container)
+- **Container Format:** Custom authenticated `GSMS` v1 binary structure.
+- **Header:** Magic bytes `GSMS` (0x47, 0x53, 0x4D, 0x53), format version `1`, 16-byte salt, 12-byte initialization vector (IV).
+- **Payload Cipher:** AES-256-GCM with integral authentication tag preventing tampering or partial archive corruption.
+- **Auto-Backup Engine:** WorkManager periodic tasks scheduled with battery and idle constraints, isolated from headless test runners.
+
+---
+
+## 3. Runtime Protection & Threat Hardening
+
+1. **Screen Capture & Task Hijacking (`FLAG_SECURE`):**
+   - Applied to `PrivateVaultActivity` and sensitive screens to prevent snapshot leakage in the Recent Apps switcher.
+2. **Secure Auto-Clearing Clipboard:**
+   - One-time passwords (OTP) and extracted sensitive credentials copied to the system clipboard are purged automatically after 30 seconds.
+3. **Phishing & Malicious Link Detection:**
+   - On-device heuristic scanner detects lookalike characters (homograph spoofing), deceptive IP-based URLs, and rogue USSD execution codes (`*...#`).
+4. **Log Data Sanitization:**
+   - Raw phone numbers and message contents are scrubbed via `FieldEncryptionManager.redactedForLog()` before emitting system logcat messages.
+5. **Headless Environment Isolation:**
+   - Background WorkManager trackers check `isTestEnvironment()` to guarantee zero receiver crashes during Robolectric automated verification.

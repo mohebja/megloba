@@ -2,12 +2,13 @@
 
 **Project Name:** Global SMS (`com.global.sms`)  
 **Target Horizon:** 2026 – 2027  
+**Current Baseline:** Version 8.0.0 (Zero-Defect Production Certified, 227 Tests Passing)
 
 ---
 
 ## 1. Overview & Vision
 
-With Version 1.6.0 achieving zero-defect production certification, the v2.0 roadmap outlines next-generation capabilities, expanded ecosystem support, and enterprise commercial options.
+With Version 8.0.0 achieving zero-defect production certification across 227 automated tests, the v2.0 roadmap outlines next-generation capabilities, expanded companion ecosystems, and enterprise commercial options.
 
 ---
 

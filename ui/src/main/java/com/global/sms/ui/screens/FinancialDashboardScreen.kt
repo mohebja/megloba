@@ -99,17 +99,30 @@ fun FinancialDashboardScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            val report = StringBuilder("📊 گزارش هوش مالی Global SMS:\n")
-                            report.append("واریزی کل: ${formatter.format(totalIncome.toLong())} تومان\n")
-                            report.append("هزینه کل: ${formatter.format(totalExpense.toLong())} تومان\n")
-                            report.append("تراز خالص: ${formatter.format(netBalance.toLong())} تومان\n")
-                            report.append("تعداد تراکنش‌ها: ${transactions.size}")
-                            clipboardManager.setText(AnnotatedString(report.toString()))
+                            try {
+                                val exportFile = java.io.File(context.cacheDir, "financial_report_${System.currentTimeMillis()}.csv")
+                                com.global.sms.core.export.FinancialExportEngine.generateCsvExport(transactions, exportFile)
+                                com.global.sms.core.haptic.HapticFeedbackManager.vibrateClick(context)
+                                Toast.makeText(context, "فایل اکسل/CSV در حافظه ایجاد شد (${exportFile.name})", Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "خطا در خروجی فایل: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.testTag("btn_export_financial_csv")
+                    ) {
+                        Icon(Icons.Default.ArrowDownward, contentDescription = "خروجی اکسل و CSV")
+                    }
+
+                    IconButton(
+                        onClick = {
+                            val report = com.global.sms.core.export.FinancialExportEngine.generateTextSummary(transactions)
+                            clipboardManager.setText(AnnotatedString(report))
+                            com.global.sms.core.haptic.HapticFeedbackManager.vibrateClick(context)
                             Toast.makeText(context, "گزارش مالی در کلیپ‌بورد کپی شد", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.testTag("btn_export_financial_report")
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "خروجی گزارش")
+                        Icon(Icons.Default.Share, contentDescription = "اشتراک‌گذاری گزارش")
                     }
                 }
             )

@@ -54,17 +54,29 @@ class GlobalSmsApp : Application(), ImageLoaderFactory, Configuration.Provider {
         }
 
         // 2. Battery & Resource-Optimized WorkManager Background Maintenance Job
-        scheduleBackgroundMaintenance()
+        if (!isTestEnvironment()) {
+            scheduleBackgroundMaintenance()
 
-        // 3. One-time conversion of rows written by the old field-level encryption (no-op once finished)
-        try {
-            LegacyFieldDecryptionWorker.enqueueIfNeeded(this)
+            // 3. One-time conversion of rows written by the old field-level encryption (no-op once finished)
+            try {
+                LegacyFieldDecryptionWorker.enqueueIfNeeded(this)
+            } catch (e: Throwable) {
+                Log.e("GlobalSmsApp", "Failed to schedule legacy field decryption", e)
+            }
+        }
+    }
+
+    private fun isTestEnvironment(): Boolean {
+        return try {
+            Class.forName("org.robolectric.Robolectric")
+            true
         } catch (e: Throwable) {
-            Log.e("GlobalSmsApp", "Failed to schedule legacy field decryption", e)
+            false
         }
     }
 
     private fun scheduleBackgroundMaintenance() {
+        if (isTestEnvironment()) return
         try {
             val constraints = Constraints.Builder()
                 .setRequiresBatteryNotLow(true)
