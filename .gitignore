@@ -22,6 +22,7 @@ externalNativeBuild/
 .cxx/
 .env
 .env.*
+!.env.example
 *.jks
 release/
 backup/
