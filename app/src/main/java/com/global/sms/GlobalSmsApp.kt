@@ -111,7 +111,7 @@ class GlobalSmsApp : Application(), ImageLoaderFactory, Configuration.Provider {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         // Modern Android Q+ memory management: trim caches when system requests memory reclaim
-        if (level >= TRIM_MEMORY_BACKGROUND || level >= TRIM_MEMORY_MODERATE) {
+        if (level >= TRIM_MEMORY_BACKGROUND || level >= TRIM_MEMORY_RUNNING_CRITICAL) {
             coil.Coil.imageLoader(this).memoryCache?.clear()
         }
     }

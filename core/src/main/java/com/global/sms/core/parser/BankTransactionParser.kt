@@ -60,12 +60,26 @@ object BankTransactionParser {
 
     private val numberFormat = DecimalFormat("#,###")
 
+    // High performance O(1) in-memory cache for parsed SMS messages
+    private val analysisCache = object : LinkedHashMap<Int, BankSmsAnalysis>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, BankSmsAnalysis>?): Boolean {
+            return size > 500
+        }
+    }
+
     fun analyzeMessage(
         sender: String,
         body: String,
         messageId: Long = 0L,
         timestamp: Long = System.currentTimeMillis()
     ): BankSmsAnalysis {
+        val cacheKey = (sender.hashCode() * 31) + body.hashCode()
+        synchronized(analysisCache) {
+            analysisCache[cacheKey]?.let { cached ->
+                return cached.copy(messageId = messageId, timestamp = timestamp)
+            }
+        }
+
         val upperSender = sender.uppercase()
         val normalizedBody = PersianUtils.toEnglishDigits(body)
         val isBankSender = BANK_SENDERS.any { upperSender.contains(it) }
@@ -98,7 +112,7 @@ object BankTransactionParser {
             else -> TransactionType.OTHER
         }
 
-        return BankSmsAnalysis(
+        val result = BankSmsAnalysis(
             messageId = messageId,
             sender = sender,
             rawBody = body,
@@ -117,6 +131,10 @@ object BankTransactionParser {
             paymentLink = paymentLink,
             trackingNumber = trackingNumber
         )
+        synchronized(analysisCache) {
+            analysisCache[cacheKey] = result
+        }
+        return result
     }
 
     private fun extractBankName(sender: String, body: String): String {

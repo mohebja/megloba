@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -142,13 +144,13 @@ fun AnalyticsDashboardScreen(
                         MetricCard(
                             title = "پیام‌های دریافتی",
                             value = formatNum(data.incomingMessagesCount),
-                            icon = Icons.Default.CallReceived,
+                            icon = Icons.AutoMirrored.Filled.CallReceived,
                             modifier = Modifier.weight(1f)
                         )
                         MetricCard(
                             title = "پیام‌های ارسالی",
                             value = formatNum(data.outgoingMessagesCount),
-                            icon = Icons.Default.CallMade,
+                            icon = Icons.AutoMirrored.Filled.CallMade,
                             modifier = Modifier.weight(1f)
                         )
                     }

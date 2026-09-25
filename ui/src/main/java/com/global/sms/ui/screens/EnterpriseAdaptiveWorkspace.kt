@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -324,7 +325,7 @@ private fun OrganizationNavPane(
             Triple("همه", "همه گفتگوها ($totalConversations)", Icons.AutoMirrored.Filled.Message),
             Triple("VIP", "مشتریان ویژه VIP", Icons.Default.Star),
             Triple("مشتری", "مشتریان ثبت‌شده ($totalCustomers)", Icons.Default.People),
-            Triple("سرنخ (Lead)", "سرنخ‌های فروش", Icons.Default.TrendingUp)
+            Triple("سرنخ (Lead)", "سرنخ‌های فروش", Icons.AutoMirrored.Filled.TrendingUp)
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -193,8 +193,9 @@ fun TemplateEditDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     val addVar = { varName: String -> body += " {$varName}" }
                     SuggestionChip(onClick = { addVar("name") }, label = { Text("{name}", fontSize = 11.sp) })
+                    SuggestionChip(onClick = { addVar("date") }, label = { Text("{date}", fontSize = 11.sp) })
                     SuggestionChip(onClick = { addVar("order_number") }, label = { Text("{order_number}", fontSize = 11.sp) })
-                    SuggestionChip(onClick = { addVar("amount") }, label = { Text("{amount}", fontSize = 11.sp) })
+                    SuggestionChip(onClick = { addVar("tracking_code") }, label = { Text("{tracking_code}", fontSize = 11.sp) })
                 }
             }
         },
@@ -210,7 +211,8 @@ fun TemplateEditDialog(
                             )
                         )
                     }
-                }
+                },
+                modifier = Modifier.testTag("btn_save_template")
             ) {
                 Text("ذخیره")
             }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -104,7 +105,7 @@ fun EnterpriseDashboardScreen(
                             modifier = Modifier.testTag("btn_top_workspace")
                         ) {
                             Icon(
-                                Icons.Default.Chat,
+                                Icons.AutoMirrored.Filled.Chat,
                                 contentDescription = "میز کار گفتگوها",
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -167,7 +168,7 @@ fun EnterpriseDashboardScreen(
                             onClick = { onNavigateAdaptiveWorkspace(null) },
                             modifier = Modifier.testTag("btn_launch_workspace")
                         ) {
-                            Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("میز کار گفتگوها", fontSize = 11.sp)
                         }
@@ -201,7 +202,7 @@ fun EnterpriseDashboardScreen(
                             title = "میز کار انطباقی پیام‌ها",
                             subtitle = "پاسخ‌دهی زنده و هوش ارتباطی",
                             badgeText = "${conversations.size} گفتگو",
-                            icon = Icons.Default.Chat,
+                            icon = Icons.AutoMirrored.Filled.Chat,
                             color = Color(0xFF00897B),
                             onClick = { onNavigateAdaptiveWorkspace(null) },
                             modifier = Modifier.weight(1f)
@@ -317,7 +318,7 @@ fun EnterpriseDashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Chat,
+                                    imageVector = Icons.AutoMirrored.Filled.Chat,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)

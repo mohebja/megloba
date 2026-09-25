@@ -108,6 +108,7 @@ fun AiCopilotDashboardCard(
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
+                @Suppress("DEPRECATION")
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 Spacer(modifier = Modifier.height(12.dp))
 
