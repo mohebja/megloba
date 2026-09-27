@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Global SMS</string>
+    <string name="widget_description">ویجت هوشمند پیام‌رسان جهانی: مشاهده کدهای تایید بانکی (OTP) و پیام‌های ناخوانده</string>
 </resources>

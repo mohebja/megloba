@@ -88,7 +88,25 @@ class NotificationActionReceiver : BroadcastReceiver() {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     val clip = ClipData.newPlainText("OTP Code", otpCode)
                                     clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "کد تایید کپی شد: $otpCode", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "کد تایید کپی شد ($otpCode) - پاک‌سازی امن پس از ۴۵ ثانیه", Toast.LENGTH_SHORT).show()
+
+                                    // Auto-clear clipboard after 45 seconds for security
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        try {
+                                            val currentClip = clipboard.primaryClip
+                                            if (currentClip != null && currentClip.itemCount > 0) {
+                                                if (currentClip.getItemAt(0)?.text?.toString() == otpCode) {
+                                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                                        clipboard.clearPrimaryClip()
+                                                    } else {
+                                                        clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
+                                                    }
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("NotificationActionRcvr", "Failed to clear clipboard", e)
+                                        }
+                                    }, 45000L)
                                 } catch (e: Exception) {
                                     Log.e("NotificationActionRcvr", "Failed to copy OTP to clipboard", e)
                                 }

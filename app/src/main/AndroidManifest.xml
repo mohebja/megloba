@@ -117,6 +117,19 @@
             </intent-filter>
         </service>
 
+        <!-- AppWidget Provider for Home Screen Quick Glance & OTP -->
+        <receiver
+            android:name="com.global.sms.widget.GlobalSmsAppWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.global.sms.widget.ACTION_COPY_WIDGET_OTP" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/global_sms_widget_info" />
+        </receiver>
+
         <!-- Disable default WorkManager initializer for on-demand initialization -->
         <provider
             android:name="androidx.startup.InitializationProvider"
