@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.sp
 
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.DirectionsCar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +106,7 @@ fun SettingsScreen(
     onNavigateToFontSettings: () -> Unit = {},
     onNavigateToColorCustomization: () -> Unit = {},
     onNavigateToGroupManagement: () -> Unit = {},
+    onNavigateToAutoResponder: () -> Unit = {},
     onNavigateToAiSettings: () -> Unit = {},
     onNavigateToEnterpriseDashboard: () -> Unit = {},
     onNavigateToSmsCenterSettings: () -> Unit = {},
@@ -146,6 +148,13 @@ fun SettingsScreen(
                 icon = androidx.compose.material.icons.Icons.Default.Group,
                 testTag = "nav_group_management",
                 onClick = onNavigateToGroupManagement
+            )
+            SettingNavigationCard(
+                title = "پاسخگوی خودکار هوشمند (Auto-Responder)",
+                description = "پاسخ پیامکی خودکار در زمان رانندگی، جلسات کاری، ساعات غیراداری و پیام‌های سفارشی",
+                icon = androidx.compose.material.icons.Icons.Default.DirectionsCar,
+                testTag = "nav_auto_responder",
+                onClick = onNavigateToAutoResponder
             )
             SettingNavigationCard(
                 title = "دسته‌بندی‌ها و قوانین اختصاص خودکار",

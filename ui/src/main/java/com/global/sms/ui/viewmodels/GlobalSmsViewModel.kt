@@ -124,6 +124,8 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
     private val automationTemplateDao = db.automationTemplateDao()
 
     val activeOtpsFlow = otpDao.getActiveOtpsFlow()
+    val activeOtps: StateFlow<List<com.global.sms.data.entity.OtpEntity>> = otpDao.getActiveOtpsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allOtpsFlow = otpDao.getAllOtpsFlow()
     val aiSettingsFlow = aiSettingsDao.getAiSettingsFlow()
 
@@ -196,6 +198,31 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
     fun markOtpAsUsed(otpId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             otpDao.markAsUsed(otpId)
+        }
+    }
+
+    fun copyOtpWithAutoClear(context: android.content.Context, code: String, clearDelaySeconds: Long = 45L) {
+        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText("OTP Code", code)
+        clipboard?.setPrimaryClip(clip)
+
+        viewModelScope.launch(Dispatchers.Main) {
+            kotlinx.coroutines.delay(clearDelaySeconds * 1000L)
+            try {
+                val currentClip = clipboard?.primaryClip
+                if (currentClip != null && currentClip.itemCount > 0) {
+                    val currentText = currentClip.getItemAt(0)?.text?.toString()
+                    if (currentText == code) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                            clipboard?.clearPrimaryClip()
+                        } else {
+                            clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("GlobalSmsViewModel", "Failed to auto-clear clipboard", e)
+            }
         }
     }
 

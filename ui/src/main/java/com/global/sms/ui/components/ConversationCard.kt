@@ -1,7 +1,9 @@
 package com.global.sms.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +44,7 @@ import com.global.sms.ui.theme.PrivateCategoryColor
 import com.global.sms.ui.theme.SpamCategoryColor
 import com.global.sms.ui.theme.WorkCategoryColor
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ConversationCard(
     conversation: ConversationEntity,
@@ -49,6 +52,7 @@ fun ConversationCard(
     usePersianDigits: Boolean,
     usePersianCalendar: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     onPinToggle: () -> Unit,
     onHideToVault: () -> Unit,
     onDelete: () -> Unit
@@ -72,7 +76,10 @@ fun ConversationCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 2.dp)
-                    .clickable { onClick() }
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
                     .testTag("conversation_card_${conversation.threadId}"),
                 colors = CardDefaults.cardColors(
                     containerColor = if (conversation.isPinned) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
@@ -138,7 +145,10 @@ fun ConversationCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 6.dp)
-                    .clickable { onClick() }
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
                     .testTag("conversation_card_${conversation.threadId}"),
                 colors = CardDefaults.cardColors(
                     containerColor = if (conversation.isPinned) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
@@ -244,7 +254,10 @@ fun ConversationCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 4.dp)
-                    .clickable { onClick() }
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
                     .testTag("conversation_card_${conversation.threadId}"),
                 colors = CardDefaults.cardColors(
                     containerColor = if (conversation.isPinned) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface

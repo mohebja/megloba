@@ -101,6 +101,20 @@ object MessageDispatcher {
         val encryptedMessage = FieldEncryptionManager.encryptMessage(message)
         val messageId = messageDao.insertMessage(encryptedMessage)
 
+        // 3a. Store OTP in OtpManager if OTP is detected or category is OTP/BANK
+        if (!otpCode.isNullOrBlank() || finalCategory == MessageCategory.OTP || finalCategory == MessageCategory.BANK) {
+            try {
+                com.global.sms.core.ai.otp.OtpManager(db.otpDao()).processAndStoreOtp(
+                    messageId = messageId,
+                    sender = address,
+                    body = body,
+                    timestamp = timestamp
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to index OTP into OtpManager", e)
+            }
+        }
+
         // 3b. Mirror into the system SMS provider (content://sms) when this app is the default SMS app.
         if (writeToSystemProvider && com.global.sms.engine.provider.SystemSmsProvider.isDefaultSmsApp(context)) {
             try {
@@ -155,6 +169,51 @@ object MessageDispatcher {
                 category = finalCategory,
                 existingOtpCode = otpCode
             )
+        }
+
+        // 7. Smart Auto-Responder Execution
+        if (!isHidden && finalCategory != MessageCategory.SPAM && finalCategory != MessageCategory.OTP && finalCategory != MessageCategory.BANK) {
+            try {
+                com.global.sms.core.autoresponder.SmartAutoResponderManager.init(context)
+                val arConfig = com.global.sms.core.autoresponder.SmartAutoResponderManager.config.value
+                if (arConfig.isEnabled) {
+                    val nowHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    val isInTimeWindow = if (arConfig.mode == com.global.sms.core.autoresponder.AutoResponderMode.OUT_OF_OFFICE) {
+                        if (arConfig.startHour > arConfig.endHour) {
+                            nowHour >= arConfig.startHour || nowHour < arConfig.endHour
+                        } else {
+                            nowHour in arConfig.startHour until arConfig.endHour
+                        }
+                    } else {
+                        true
+                    }
+
+                    if (isInTimeWindow) {
+                        val shouldSend = if (arConfig.applyOnlyToContacts) {
+                            val contact = db.contactDao().getContactByPhone(address)
+                            contact != null
+                        } else {
+                            address.length >= 7 && !address.startsWith("1000") && !address.startsWith("2000") && !address.startsWith("3000") && !address.startsWith("5000")
+                        }
+
+                        if (shouldSend) {
+                            val replyMessage = com.global.sms.core.autoresponder.SmartAutoResponderManager.getActiveReplyMessage()
+                            if (replyMessage.isNotBlank()) {
+                                dispatchSendMessage(
+                                    context = context,
+                                    address = address,
+                                    body = replyMessage,
+                                    simSlot = simSlot
+                                )
+                                com.global.sms.core.autoresponder.SmartAutoResponderManager.incrementSentCount(context)
+                                Log.i(TAG, "Smart auto-responder replied to $address in mode: ${arConfig.mode}")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error executing smart auto-responder on incoming SMS", e)
+            }
         }
     }
 

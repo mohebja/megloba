@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -65,7 +67,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import com.global.sms.ui.components.ConversationQuickActionsSheet
+import com.global.sms.ui.components.OtpFloatingBanner
+import com.global.sms.ui.components.OtpSmartHubDialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -103,6 +109,7 @@ fun ConversationsScreen(
     onOpenBank: () -> Unit = {},
     onOpenPerformance: () -> Unit = {},
     onOpenSettings: () -> Unit,
+    onOpenAutoResponder: () -> Unit = {},
     onOpenGroupManagement: () -> Unit = {},
     onOpenMultiCompose: () -> Unit = {},
     onComposeNew: () -> Unit,
@@ -117,9 +124,14 @@ fun ConversationsScreen(
     val smsImportProgress by viewModel.smsImportProgress.collectAsStateWithLifecycle()
     val smsImportStatusText by viewModel.smsImportStatusText.collectAsStateWithLifecycle()
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
+    val activeOtps by viewModel.activeOtps.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
     var isSearchActive by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
+    var showOtpHubDialog by remember { mutableStateOf(false) }
+    var bannerDismissedId by remember { mutableStateOf<Long?>(null) }
+    var selectedConvForQuickActions by remember { mutableStateOf<ConversationEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -132,6 +144,24 @@ fun ConversationsScreen(
                     )
                 },
                 actions = {
+                    // OTP Quick Hub Button with Active Count Badge
+                    IconButton(
+                        onClick = { showOtpHubDialog = true },
+                        modifier = Modifier.testTag("otp_hub_button")
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (activeOtps.isNotEmpty()) {
+                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                        Text(if (usePersianDigits) PersianUtils.toPersianDigits(activeOtps.size.toString()) else activeOtps.size.toString())
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.VpnKey, contentDescription = "کدهای تایید OTP", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
                     IconButton(
                         onClick = onOpenSearch,
                         modifier = Modifier.testTag("search_button")
@@ -167,6 +197,16 @@ fun ConversationsScreen(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("مرکز کدهای تایید (Smart OTP)") },
+                            leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            onClick = { menuExpanded = false; showOtpHubDialog = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("پاسخگوی خودکار هوشمند (Auto-Responder)") },
+                            leadingIcon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            onClick = { menuExpanded = false; onOpenAutoResponder() }
+                        )
                         DropdownMenuItem(
                             text = { Text("ارسال پیامک چند مخاطبی / گروهی") },
                             leadingIcon = { Icon(Icons.Default.GroupAdd, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
@@ -272,6 +312,20 @@ fun ConversationsScreen(
                 statusText = smsImportStatusText
             )
 
+            // Active OTP floating banner (shows latest active verification code)
+            val latestActiveOtp = activeOtps.firstOrNull { it.id != bannerDismissedId }
+            if (latestActiveOtp != null) {
+                OtpFloatingBanner(
+                    otp = latestActiveOtp,
+                    usePersianDigits = usePersianDigits,
+                    onCopy = { code ->
+                        viewModel.copyOtpWithAutoClear(context, code)
+                    },
+                    onOpenHub = { showOtpHubDialog = true },
+                    onDismiss = { bannerDismissedId = latestActiveOtp.id }
+                )
+            }
+
             // Category Filter Chips Row
             CategoryChipsRow(
                 selectedCategory = selectedCategory,
@@ -303,6 +357,7 @@ fun ConversationsScreen(
                                 usePersianDigits = usePersianDigits,
                                 usePersianCalendar = usePersianCalendar,
                                 onClick = { onOpenThread(conversation.threadId) },
+                                onLongClick = { selectedConvForQuickActions = conversation },
                                 onPinToggle = { viewModel.togglePinConversation(conversation.threadId, conversation.isPinned) },
                                 onHideToVault = { viewModel.hideConversation(conversation.threadId, true) },
                                 onDelete = { viewModel.deleteConversation(conversation.threadId) }
@@ -312,6 +367,47 @@ fun ConversationsScreen(
                 }
             }
         }
+    }
+
+    if (showOtpHubDialog) {
+        OtpSmartHubDialog(
+            activeOtps = activeOtps,
+            usePersianDigits = usePersianDigits,
+            onDismiss = { showOtpHubDialog = false },
+            onCopyOtp = { code ->
+                viewModel.copyOtpWithAutoClear(context, code)
+            },
+            onMarkAsUsed = { otpId ->
+                viewModel.markOtpAsUsed(otpId)
+            },
+            onDeleteOtp = { otpId ->
+                viewModel.deleteOtp(otpId)
+            }
+        )
+    }
+
+    selectedConvForQuickActions?.let { conv ->
+        ConversationQuickActionsSheet(
+            conversation = conv,
+            usePersianDigits = usePersianDigits,
+            onDismiss = { selectedConvForQuickActions = null },
+            onOpenThread = {
+                selectedConvForQuickActions = null
+                onOpenThread(conv.threadId)
+            },
+            onSendQuickReply = { replyMsg ->
+                viewModel.sendMessage(conv.address, replyMsg, 0)
+            },
+            onPinToggle = {
+                viewModel.togglePinConversation(conv.threadId, conv.isPinned)
+            },
+            onHideToVault = {
+                viewModel.hideConversation(conv.threadId, true)
+            },
+            onDelete = {
+                viewModel.deleteConversation(conv.threadId)
+            }
+        )
     }
 }
 

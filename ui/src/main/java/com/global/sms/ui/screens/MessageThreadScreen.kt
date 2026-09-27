@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Quickreply
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -109,6 +111,7 @@ fun MessageThreadScreen(
     var showQuickReplySheet by remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showAttachmentPicker by remember { mutableStateOf(false) }
+    var showScheduleDialog by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
     var selectedMessageForAction by remember { mutableStateOf<com.global.sms.data.entity.MessageEntity?>(null) }
 
@@ -255,8 +258,8 @@ fun MessageThreadScreen(
                                 usePersianDigits = usePersianDigits,
                                 usePersianCalendar = usePersianCalendar,
                                 onCopyOtp = { code ->
-                                    clipboardManager.setText(AnnotatedString(code))
-                                    Toast.makeText(context, "کد تایید کپی شد: $code", Toast.LENGTH_SHORT).show()
+                                    viewModel.copyOtpWithAutoClear(context, code)
+                                    Toast.makeText(context, "کد تایید کپی شد (حافظه موقت امن ۴۵ ثانیه)", Toast.LENGTH_SHORT).show()
                                 },
                                 onSpeak = { viewModel.speakMessage(message.body) },
                                 onHideMessage = { viewModel.hideMessage(message.id, true) },
@@ -484,6 +487,13 @@ fun MessageThreadScreen(
                             Icon(Icons.Default.Quickreply, contentDescription = "پاسخ سریع")
                         }
 
+                        IconButton(
+                            onClick = { showScheduleDialog = true },
+                            modifier = Modifier.testTag("thread_schedule_button")
+                        ) {
+                            Icon(Icons.Default.Alarm, contentDescription = "زمان‌بندی پیامک", tint = MaterialTheme.colorScheme.primary)
+                        }
+
                         OutlinedTextField(
                             value = messageText,
                             onValueChange = { messageText = it },
@@ -518,6 +528,24 @@ fun MessageThreadScreen(
                 }
             }
         }
+    }
+
+    if (showScheduleDialog) {
+        com.global.sms.ui.components.InThreadScheduleDialog(
+            recipientAddress = rawAddress,
+            messageDraft = messageText,
+            selectedSimSlot = selectedSimSlot,
+            usePersianDigits = usePersianDigits,
+            usePersianCalendar = usePersianCalendar,
+            onDismiss = { showScheduleDialog = false },
+            onConfirmSchedule = { targetTime, simSlot ->
+                val textToSend = messageText.ifBlank { "پیامک یادآوری" }.trim()
+                viewModel.scheduleMessage(rawAddress, textToSend, targetTime, simSlot)
+                messageText = ""
+                showScheduleDialog = false
+                Toast.makeText(context, "پیامک برای ارسال زمان‌بندی شد", Toast.LENGTH_SHORT).show()
+            }
+        )
     }
 }
 
@@ -572,23 +600,14 @@ fun MessageBubble(
                 )
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                // Threat warning if detected
-                val warningReason = scan.warningReason
-                if (scan.isSpamOrPhishing && warningReason != null) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 6.dp)
-                    ) {
-                        Text(
-                            text = warningReason,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(6.dp)
-                        )
-                    }
+                // Threat warning with dedicated Phishing radar card if detected
+                if (scan.isSpamOrPhishing) {
+                    com.global.sms.ui.components.PhishingWarningCard(
+                        scanResult = scan,
+                        onBlockSender = onHideMessage,
+                        onReportSpam = onHideMessage,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
                 }
 
                 Text(

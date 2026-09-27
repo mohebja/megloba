@@ -408,6 +408,7 @@ fun GlobalSmsAppNavHost(
                 onNavigateToFontSettings = { navController.navigate("font_settings") },
                 onNavigateToColorCustomization = { navController.navigate("color_customization") },
                 onNavigateToGroupManagement = { navController.navigate("groups") },
+                onNavigateToAutoResponder = { navController.navigate("auto_responder") },
                 onNavigateToAiSettings = { navController.navigate("ai_settings") },
                 onNavigateToEnterpriseDashboard = { navController.navigate("enterprise_dashboard") },
                 onNavigateToSmsCenterSettings = { navController.navigate("smsc_settings") },
@@ -633,6 +634,12 @@ fun GlobalSmsAppNavHost(
             com.global.sms.ui.screens.DatabaseDiagnosticsScreen(
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("auto_responder") {
+            com.global.sms.ui.screens.AutoResponderSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

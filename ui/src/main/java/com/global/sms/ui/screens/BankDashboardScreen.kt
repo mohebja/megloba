@@ -162,6 +162,37 @@ fun BankDashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            try {
+                                val csvBuilder = StringBuilder()
+                                csvBuilder.appendLine("بانک,نوع تراکنش,مبلغ (تومان),مانده حساب (تومان),شماره کارت,کد پیگیری,تاریخ")
+                                filteredAnalyses.forEach { item ->
+                                    val typeStr = when (item.transactionType) {
+                                        TransactionType.CREDIT -> "واریز"
+                                        TransactionType.DEBIT -> "برداشت"
+                                        TransactionType.OTP -> "رمز پویا"
+                                        TransactionType.BALANCE_INQUIRY -> "اعلام مانده"
+                                        else -> "سایر"
+                                    }
+                                    val dateStr = PersianUtils.formatTimestamp(item.timestamp, usePersianCalendar, false)
+                                    csvBuilder.appendLine("\"${item.bankName}\",\"$typeStr\",${item.amountTomans ?: 0},${item.balanceTomans ?: 0},\"${item.cardNumber ?: ""}\",\"${item.trackingNumber ?: ""}\",\"$dateStr\"")
+                                }
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/csv"
+                                    putExtra(Intent.EXTRA_SUBJECT, "گزارش مالی پیامک‌ها - Global SMS")
+                                    putExtra(Intent.EXTRA_TEXT, csvBuilder.toString())
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "اشتراک‌گذاری گزارش مالی اکسل/CSV"))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "خطا در خروجی گزارش", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.testTag("export_financial_csv_button")
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = "خروجی اکسل/CSV")
+                    }
+
                     if (latestOtp != null) {
                         FilledTonalButton(
                             onClick = {
