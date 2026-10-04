@@ -60,6 +60,9 @@ interface AutomationRuleDao {
     @Query("SELECT * FROM automation_rules WHERE isEnabled = 1")
     fun getEnabledRulesFlow(): Flow<List<AutomationRuleEntity>>
 
+    @Query("SELECT * FROM automation_rules WHERE isEnabled = 1")
+    suspend fun getEnabledRules(): List<AutomationRuleEntity>
+
     @Query("SELECT * FROM automation_rules ORDER BY id DESC")
     fun getAllRulesFlow(): Flow<List<AutomationRuleEntity>>
 

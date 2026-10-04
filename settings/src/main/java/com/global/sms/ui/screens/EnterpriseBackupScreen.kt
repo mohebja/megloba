@@ -1,7 +1,11 @@
 package com.global.sms.ui.screens
 
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +48,33 @@ fun EnterpriseBackupScreen(
     var backupStatus by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
     var lastBackupFile by remember { mutableStateOf<File?>(null) }
+    var pickedFileStatus by remember { mutableStateOf<String?>(null) }
+
+    val pickBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val tempFile = File(context.cacheDir, "picked_backup_${System.currentTimeMillis()}.gsms")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        tempFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    lastBackupFile = tempFile
+                    withContext(Dispatchers.Main) {
+                        pickedFileStatus = "فایل انتخاب شد (${tempFile.name})"
+                        Toast.makeText(context, "فایل پشتیبان انتخاب شد. گذرواژه را وارد کنید.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "خطا در خواندن فایل انتخابی", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
 
     val restoreProgress by BackgroundRestoreEngine.restoreProgress.collectAsState()
 
@@ -263,6 +294,32 @@ fun EnterpriseBackupScreen(
                                 fontSize = 13.sp
                             )
                         }
+
+                        if (lastBackupFile != null && lastBackupFile!!.exists()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        val file = lastBackupFile!!
+                                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/octet-stream"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            putExtra(Intent.EXTRA_SUBJECT, "فایل پشتیبان رمزنگاری‌شده Global SMS")
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "ذخیره یا اشتراک فایل پشتیبان (.gsms)"))
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "امکان اشتراک‌گذاری فایل وجود ندارد: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().testTag("share_backup_file_button")
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("اشتراک و ذخیره فایل (.gsms)")
+                            }
+                        }
                     }
                 }
 
@@ -279,11 +336,22 @@ fun EnterpriseBackupScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "برای بازیابی اطلاعات، گذرواژه فایل پشتیبان را وارد نمایید.",
+                            text = "برای بازیابی اطلاعات، فایل .gsms را انتخاب کرده و گذرواژه را وارد نمایید.",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedButton(
+                            onClick = { pickBackupLauncher.launch("*/*") },
+                            modifier = Modifier.fillMaxWidth().testTag("pick_backup_file_button")
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(pickedFileStatus ?: "انتخاب فایل .gsms از حافظه دستگاه")
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         OutlinedButton(
                             onClick = {

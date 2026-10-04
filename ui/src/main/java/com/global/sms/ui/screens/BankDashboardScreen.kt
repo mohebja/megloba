@@ -37,6 +37,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.global.sms.core.parser.BankSmsAnalysis
 import com.global.sms.core.parser.TransactionType
 import com.global.sms.core.util.PersianUtils
+import com.global.sms.core.financial.DigitalReceiptGenerator
+import com.global.sms.ui.components.DigitalReceiptDialog
 import com.global.sms.ui.viewmodels.GlobalSmsViewModel
 import java.text.DecimalFormat
 
@@ -44,7 +46,8 @@ import java.text.DecimalFormat
 @Composable
 fun BankDashboardScreen(
     viewModel: GlobalSmsViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToBills: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val bankAnalyses by viewModel.bankAnalyses.collectAsStateWithLifecycle()
@@ -55,6 +58,7 @@ fun BankDashboardScreen(
     var selectedBankFilter by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var activeTab by remember { mutableIntStateOf(0) } // 0: Overview & Transactions, 1: OTPs & Links, 2: Cards & Balances
+    var selectedReceiptAnalysis by remember { mutableStateOf<BankSmsAnalysis?>(null) }
 
     // Calculations
     val filteredAnalyses = remember(bankAnalyses, selectedTypeFilter, selectedBankFilter, searchQuery) {
@@ -162,6 +166,13 @@ fun BankDashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = onNavigateToBills,
+                        modifier = Modifier.testTag("nav_bills_debt_button")
+                    ) {
+                        Icon(Icons.Default.ReceiptLong, contentDescription = "مرکز قبوض و اقساط", tint = MaterialTheme.colorScheme.primary)
+                    }
+
                     IconButton(
                         onClick = {
                             try {
@@ -395,7 +406,8 @@ fun BankDashboardScreen(
                                 onCopyTracking = { tracking ->
                                     viewModel.copyToSecureClipboard("شماره پیگیری", tracking)
                                     Toast.makeText(context, "شماره پیگیری $tracking کپی شد", Toast.LENGTH_SHORT).show()
-                                }
+                                },
+                                onShowReceipt = { selectedReceiptAnalysis = it }
                             )
                         }
                     }
@@ -485,6 +497,16 @@ fun BankDashboardScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
+        }
+
+        selectedReceiptAnalysis?.let { analysis ->
+            val receipt = remember(analysis) {
+                DigitalReceiptGenerator.generateReceiptFromAnalysis(analysis)
+            }
+            DigitalReceiptDialog(
+                receipt = receipt,
+                onDismiss = { selectedReceiptAnalysis = null }
+            )
         }
     }
 }
@@ -785,7 +807,8 @@ fun BankTransactionItemCard(
     usePersianDigits: Boolean,
     usePersianCalendar: Boolean,
     onCopyOtp: (String) -> Unit,
-    onCopyTracking: (String) -> Unit
+    onCopyTracking: (String) -> Unit,
+    onShowReceipt: (BankSmsAnalysis) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -928,6 +951,28 @@ fun BankTransactionItemCard(
                             Text(
                                 text = if (usePersianDigits) "پیگیری: ${PersianUtils.toPersianDigits(trackingNum)}" else "پیگیری: $trackingNum",
                                 fontSize = 10.sp
+                            )
+                        }
+                    )
+                }
+
+                if (analysis.amountTomans != null) {
+                    AssistChip(
+                        onClick = { onShowReceipt(analysis) },
+                        label = {
+                            Text(
+                                text = "رسید دیجیتال",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ReceiptLong,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     )

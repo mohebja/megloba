@@ -24,22 +24,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.VpnKey
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -110,6 +96,8 @@ fun ConversationsScreen(
     onOpenPerformance: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenAutoResponder: () -> Unit = {},
+    onOpenTrash: () -> Unit = {},
+    onOpenBillsAndDebt: () -> Unit = {},
     onOpenGroupManagement: () -> Unit = {},
     onOpenMultiCompose: () -> Unit = {},
     onComposeNew: () -> Unit,
@@ -206,6 +194,16 @@ fun ConversationsScreen(
                             text = { Text("پاسخگوی خودکار هوشمند (Auto-Responder)") },
                             leadingIcon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                             onClick = { menuExpanded = false; onOpenAutoResponder() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("سطل بازیافت (۳۰ روزه)") },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                            onClick = { menuExpanded = false; onOpenTrash() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("یادآوری قبوض، اقساط و چک‌ها") },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            onClick = { menuExpanded = false; onOpenBillsAndDebt() }
                         )
                         DropdownMenuItem(
                             text = { Text("ارسال پیامک چند مخاطبی / گروهی") },
@@ -406,6 +404,9 @@ fun ConversationsScreen(
             },
             onDelete = {
                 viewModel.deleteConversation(conv.threadId)
+            },
+            onAddTag = { tag ->
+                viewModel.addTagToThread(conv.threadId, tag)
             }
         )
     }

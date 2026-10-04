@@ -156,7 +156,8 @@ class AutomationEngine {
 
             if (matched) {
                 val extracted = if (rule.actionType == AutomationActionType.COPY_OTP) {
-                    "\\b\\d{4,8}\\b".toRegex().find(body)?.value ?: body.take(6)
+                    val normalized = com.global.sms.core.util.PersianUtils.toEnglishDigits(body)
+                    "\\b\\d{4,8}\\b".toRegex().find(normalized)?.value ?: "\\b\\d{4,8}\\b".toRegex().find(body)?.value ?: body.take(6)
                 } else null
 
                 results.add(

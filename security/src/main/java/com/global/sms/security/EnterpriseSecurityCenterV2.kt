@@ -80,4 +80,9 @@ class EnterpriseSecurityCenterV2 {
     fun verifyDatabaseEncryptionStatus(): Boolean {
         return _scanResult.value.zeroTrustScore == 100
     }
+
+    fun triggerEmergencyPanicMode(context: android.content.Context): com.global.sms.security.panic.PanicExecutionResult {
+        val panicManager = com.global.sms.security.panic.EmergencyPanicSecurityManager(context)
+        return panicManager.executeEmergencyWipe()
+    }
 }

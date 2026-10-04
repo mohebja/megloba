@@ -37,13 +37,16 @@ fun ConversationQuickActionsSheet(
     onSendQuickReply: (String) -> Unit,
     onPinToggle: () -> Unit,
     onHideToVault: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onAddTag: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val contactInfo = rememberContactInfo(conversation.address)
     val displayName = contactInfo.name ?: conversation.contactName ?: conversation.address
 
     var replyText by remember { mutableStateOf("") }
+    var showTagInput by remember { mutableStateOf(false) }
+    var customTagText by remember { mutableStateOf("") }
 
     val quickPresets = listOf(
         "درود، پیام شما دریافت شد.",
@@ -180,6 +183,16 @@ fun ConversationQuickActionsSheet(
                     Text("گاوصندوق", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
+                // Tag
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    FilledTonalIconButton(
+                        onClick = { showTagInput = !showTagInput }
+                    ) {
+                        Icon(Icons.Default.Label, contentDescription = "برچسب‌گذاری", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Text("برچسب", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
                 // Delete
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     FilledTonalIconButton(
@@ -195,6 +208,52 @@ fun ConversationQuickActionsSheet(
                         Icon(Icons.Default.Delete, contentDescription = "حذف گفتگو", tint = MaterialTheme.colorScheme.error)
                     }
                     Text("حذف", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                }
+            }
+
+            if (showTagInput) {
+                Spacer(modifier = Modifier.height(10.dp))
+                val presetTags = listOf("کاری", "خانواده", "مشتریان", "مالی", "دانشگاه")
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(presetTags) { tag ->
+                        SuggestionChip(
+                            onClick = {
+                                onAddTag?.invoke(tag)
+                                showTagInput = false
+                                Toast.makeText(context, "برچسب #$tag اضافه شد", Toast.LENGTH_SHORT).show()
+                            },
+                            label = { Text("#$tag", fontSize = 11.sp) }
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = customTagText,
+                        onValueChange = { customTagText = it },
+                        placeholder = { Text("نام برچسب جدید...") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Button(
+                        enabled = customTagText.isNotBlank(),
+                        onClick = {
+                            onAddTag?.invoke(customTagText.trim())
+                            customTagText = ""
+                            showTagInput = false
+                            Toast.makeText(context, "برچسب اضافه شد", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Text("افزودن")
+                    }
                 }
             }
 

@@ -158,6 +158,22 @@ object MessageDispatcher {
             Log.e(TAG, "TTS read error", e)
         }
 
+        // 5.1 Smart Bill & Debt Tracker
+        try {
+            val debtItem = com.global.sms.core.debt.BillAndDebtTracker.parseMessageForDebt(
+                sender = address,
+                body = body,
+                messageId = messageId,
+                timestamp = timestamp
+            )
+            if (debtItem != null) {
+                com.global.sms.core.debt.BillAndDebtTracker.addItem(debtItem)
+                Log.i(TAG, "Tracked debt/bill: ${debtItem.title} - ${debtItem.amountTomans} T")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in BillAndDebtTracker parsing", e)
+        }
+
         // 6. Dispatch Notification
         if (!isHidden && existingConv?.isMuted != true) {
             showIncomingNotification(
@@ -213,6 +229,20 @@ object MessageDispatcher {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error executing smart auto-responder on incoming SMS", e)
+            }
+        }
+
+        // 8. Enterprise Automation Rules Execution
+        if (!isHidden && finalCategory != MessageCategory.SPAM) {
+            try {
+                EnterpriseAutomationDispatcher.evaluateAndExecute(
+                    context = context,
+                    address = address,
+                    body = body,
+                    simSlot = simSlot
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error executing enterprise automation rules", e)
             }
         }
     }

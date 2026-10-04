@@ -26,6 +26,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE threadId = :threadId AND isHidden = 0 ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
     suspend fun getMessagesForThreadPaged(threadId: Long, limit: Int, offset: Int): List<MessageEntity>
 
+    @Query("SELECT * FROM messages WHERE threadId = :threadId")
+    suspend fun getMessagesForThreadSync(threadId: Long): List<MessageEntity>
+
     @Query("SELECT * FROM messages WHERE isHidden = 1 ORDER BY timestamp DESC LIMIT 500")
     fun getHiddenMessages(): Flow<List<MessageEntity>>
 

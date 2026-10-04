@@ -832,6 +832,35 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
     val archivedConversations: StateFlow<List<ConversationEntity>> = conversationDao.getArchivedConversations()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allTags: StateFlow<List<String>> = conversationTagDao.getAllTags()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val selectedTagFilter = MutableStateFlow<String?>(null)
+
+    fun selectTagFilter(tag: String?) {
+        selectedTagFilter.value = tag
+    }
+
+    fun addTagToThread(threadId: Long, tag: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val cleanTag = tag.trim().replace("#", "")
+            if (cleanTag.isNotBlank()) {
+                conversationTagDao.insertTag(
+                    com.global.sms.data.entity.ConversationTagEntity(
+                        threadId = threadId,
+                        tag = cleanTag
+                    )
+                )
+            }
+        }
+    }
+
+    fun removeTagFromThread(threadId: Long, tag: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            conversationTagDao.deleteTag(threadId, tag)
+        }
+    }
+
     fun togglePinConversation(threadId: Long, currentIsPinned: Boolean) {
         viewModelScope.launch {
             conversationDao.setConversationPinnedWithTimestamp(threadId, !currentIsPinned, System.currentTimeMillis())
@@ -892,6 +921,11 @@ class GlobalSmsViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun deleteConversation(threadId: Long) {
         viewModelScope.launch {
+            // Read conversation and messages before deletion to preserve in Trash
+            val conv = conversationDao.getConversationByThreadId(threadId)
+            val messages = messageDao.getMessagesForThreadSync(threadId)
+            com.global.sms.core.trash.TrashManager.moveToTrash(getApplication(), threadId, conv, messages)
+
             // Read the linked system-provider rows before the local rows are gone, so the deletion can
             // still be mirrored into content://sms for anything this app wrote there as the default SMS app.
             val systemSmsIds = messageDao.getSystemSmsIdsForThread(threadId)

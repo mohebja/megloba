@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.global.sms.data.entity.MessageEntity
 import com.global.sms.ui.smart.screens.SmartConversationsScreen
@@ -88,6 +90,16 @@ fun AdaptiveConversationLayout(
 
                 // Right Pane: Active Thread Detail View & Compose Panel
                 val activeThreadId by viewModel.selectedThreadId.collectAsState()
+                val conversations by viewModel.conversations.collectAsState()
+
+                LaunchedEffect(windowType, conversations) {
+                    if (windowType != ScreenWindowType.COMPACT && (activeThreadId == null || activeThreadId == 0L)) {
+                        val firstConv = conversations.firstOrNull()
+                        if (firstConv != null) {
+                            viewModel.selectThread(firstConv.threadId)
+                        }
+                    }
+                }
 
                 Box(
                     modifier = Modifier
@@ -107,7 +119,9 @@ fun AdaptiveConversationLayout(
                     } else {
                         // Empty Detail State
                         Column(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -126,10 +140,23 @@ fun AdaptiveConversationLayout(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "برای شروع، یکی از گفتگوهای پنل کناری را انتخاب کنید.",
+                                "برای شروع، یکی از گفتگوهای پنل کناری را انتخاب کنید یا پیام جدید بنویسید.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Button(
+                                onClick = onComposeNew,
+                                modifier = Modifier.testTag("tablet_compose_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("شروع گفتگوی جدید")
+                            }
                         }
                     }
                 }
