@@ -83,12 +83,12 @@ object DigitalReceiptGenerator {
         }
 
         val tracking = analysis.trackingNumber ?: (analysis.timestamp % 100000000).toString()
-        val formattedTracking = PersianUtils.toPersianDigits(tracking)
+        val formattedTracking = PersianUtils.formatBidiLtr(PersianUtils.toPersianDigits(tracking))
 
-        val maskedCard = analysis.cardNumber?.let { maskCard(it) }
+        val maskedCard = analysis.cardNumber?.let { PersianUtils.formatBidiLtr(maskCard(it)) }
 
         val sdf = SimpleDateFormat("yyyy/MM/dd - HH:mm", Locale.getDefault())
-        val formattedDate = PersianUtils.toPersianDigits(sdf.format(Date(analysis.timestamp)))
+        val formattedDate = PersianUtils.formatBidiLtr(PersianUtils.toPersianDigits(sdf.format(Date(analysis.timestamp))))
 
         val receiptHash = computeReceiptHash(analysis.bankName, tomans, tracking, analysis.timestamp)
 

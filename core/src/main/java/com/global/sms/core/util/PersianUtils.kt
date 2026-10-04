@@ -141,4 +141,13 @@ object PersianUtils {
 
         return "$jYear/$jMonthStr/$jDayStr"
     }
+
+    /**
+     * Isolates numbers, card numbers, and tracking codes with Left-to-Right Mark (\u200E)
+     * so that hyphens, slashes, and masked asterisks render correctly without RTL inversion.
+     */
+    fun formatBidiLtr(text: String): String {
+        if (text.isEmpty()) return text
+        return "\u200E$text\u200E"
+    }
 }

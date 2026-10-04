@@ -67,6 +67,14 @@ object BankTransactionParser {
         }
     }
 
+    fun clearCache() {
+        synchronized(analysisCache) {
+            analysisCache.clear()
+        }
+    }
+
+    fun getCacheSize(): Int = synchronized(analysisCache) { analysisCache.size }
+
     fun analyzeMessage(
         sender: String,
         body: String,

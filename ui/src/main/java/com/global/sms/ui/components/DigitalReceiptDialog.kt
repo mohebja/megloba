@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.global.sms.core.financial.DigitalPaymentReceipt
 
@@ -95,6 +96,31 @@ fun DigitalReceiptDialog(
                         fontWeight = FontWeight.SemiBold
                     )
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFE3F2FD))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VerifiedUser,
+                            contentDescription = null,
+                            tint = Color(0xFF1976D2),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "احراز اصالت تراکنش شتابی",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1976D2)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Amount Display
@@ -160,6 +186,7 @@ fun DigitalReceiptDialog(
                             },
                             modifier = Modifier
                                 .weight(1f)
+                                .defaultMinSize(minHeight = 48.dp)
                                 .testTag("btn_copy_receipt")
                         ) {
                             Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -178,6 +205,7 @@ fun DigitalReceiptDialog(
                             },
                             modifier = Modifier
                                 .weight(1f)
+                                .defaultMinSize(minHeight = 48.dp)
                                 .testTag("btn_share_receipt")
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -192,6 +220,7 @@ fun DigitalReceiptDialog(
                         onClick = onDismiss,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .defaultMinSize(minHeight = 48.dp)
                             .testTag("btn_close_receipt")
                     ) {
                         Text("بستن")

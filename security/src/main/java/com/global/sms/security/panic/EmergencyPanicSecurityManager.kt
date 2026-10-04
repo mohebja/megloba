@@ -161,6 +161,22 @@ class EmergencyPanicSecurityManager(private val context: Context) {
         _panicState.value = PanicState.NORMAL
     }
 
+    /**
+     * Applies WindowManager FLAG_SECURE to prevent screenshotting and screen recording
+     * when in duress decoy mode or emergency wipe state.
+     */
+    fun applyWindowProtection(activity: android.app.Activity) {
+        try {
+            if (_panicState.value != PanicState.NORMAL) {
+                activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to apply window security flag", e)
+        }
+    }
+
+    fun isWindowProtectionActive(): Boolean = _panicState.value != PanicState.NORMAL
+
     private fun sanitizeClipboard() {
         try {
             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -174,8 +190,10 @@ class EmergencyPanicSecurityManager(private val context: Context) {
     }
 
     private fun scrubMemorySecrets() {
-        val dummyBuffer = ByteArray(1024)
+        val dummyBuffer = ByteArray(2048)
         Arrays.fill(dummyBuffer, 0.toByte())
+        val dummyChars = CharArray(1024)
+        Arrays.fill(dummyChars, '\u0000')
     }
 
     private fun hashPin(pin: String): String {

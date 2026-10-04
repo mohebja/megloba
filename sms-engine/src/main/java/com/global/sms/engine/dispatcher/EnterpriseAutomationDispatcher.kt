@@ -5,17 +5,43 @@ import android.util.Log
 import com.global.sms.data.db.GlobalSmsDatabase
 import com.global.sms.data.entity.AutomationRuleEntity
 import com.global.sms.data.entity.SecurityAuditLogEntity
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * Enterprise Automation Dispatcher.
  * Evaluates custom automation rules and executes corresponding automated actions
  * (Auto-reply, Forwarding, Audit logging, and Status marking) when new SMS arrives.
+ * Uses a non-blocking Channel queue for audit logs to eliminate SQLite write lock contention.
  */
 object EnterpriseAutomationDispatcher {
 
     private const val TAG = "EnterpriseAutomation"
+
+    private val auditLogChannel = Channel<Pair<Context, SecurityAuditLogEntity>>(capacity = 100)
+    private val scope = CoroutineScope(Dispatchers.IO)
+
+    init {
+        // Background sequential consumer for audit logs
+        scope.launch {
+            for ((appCtx, logEntry) in auditLogChannel) {
+                try {
+                    val db = GlobalSmsDatabase.getInstance(appCtx)
+                    db.securityAuditLogDao().insertLog(logEntry)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error saving queued audit log", e)
+                }
+            }
+        }
+    }
+
+    fun enqueueAuditLog(context: Context, logEntry: SecurityAuditLogEntity) {
+        val appContext = context.applicationContext
+        auditLogChannel.trySend(Pair(appContext, logEntry))
+    }
 
     suspend fun evaluateAndExecute(
         context: Context,
@@ -76,19 +102,16 @@ object EnterpriseAutomationDispatcher {
                     }
                 }
 
-                // 4. Record Audit Log
-                try {
-                    db.securityAuditLogDao().insertLog(
-                        SecurityAuditLogEntity(
-                            eventType = "AUTOMATION_TRIGGER",
-                            description = "اجرای خودکار قانون '${rule.name}' (${rule.actionType}) برای فرستنده $address",
-                            operatorName = "موتور اتوماسیون",
-                            ipOrDeviceId = "DEVICE_LOCAL"
-                        )
+                // 4. Record Non-Blocking Audit Log
+                enqueueAuditLog(
+                    context = context,
+                    logEntry = SecurityAuditLogEntity(
+                        eventType = "AUTOMATION_TRIGGER",
+                        description = "اجرای خودکار قانون '${rule.name}' (${rule.actionType}) برای فرستنده $address",
+                        operatorName = "موتور اتوماسیون",
+                        ipOrDeviceId = "DEVICE_LOCAL"
                     )
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not insert audit log for rule: ${rule.name}", e)
-                }
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in EnterpriseAutomationDispatcher", e)
