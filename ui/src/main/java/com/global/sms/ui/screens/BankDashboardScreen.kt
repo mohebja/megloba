@@ -38,6 +38,7 @@ import com.global.sms.core.parser.BankSmsAnalysis
 import com.global.sms.core.parser.TransactionType
 import com.global.sms.core.util.PersianUtils
 import com.global.sms.core.financial.DigitalReceiptGenerator
+import com.global.sms.core.financial.FinancialExpenseAnalyticsEngine
 import com.global.sms.ui.components.DigitalReceiptDialog
 import com.global.sms.ui.viewmodels.GlobalSmsViewModel
 import java.text.DecimalFormat
@@ -176,27 +177,11 @@ fun BankDashboardScreen(
                     IconButton(
                         onClick = {
                             try {
-                                val csvBuilder = StringBuilder()
-                                csvBuilder.appendLine("بانک,نوع تراکنش,مبلغ (تومان),مانده حساب (تومان),شماره کارت,کد پیگیری,تاریخ")
-                                filteredAnalyses.forEach { item ->
-                                    val typeStr = when (item.transactionType) {
-                                        TransactionType.CREDIT -> "واریز"
-                                        TransactionType.DEBIT -> "برداشت"
-                                        TransactionType.OTP -> "رمز پویا"
-                                        TransactionType.BALANCE_INQUIRY -> "اعلام مانده"
-                                        else -> "سایر"
-                                    }
-                                    val dateStr = PersianUtils.formatTimestamp(item.timestamp, usePersianCalendar, false)
-                                    csvBuilder.appendLine("\"${item.bankName}\",\"$typeStr\",${item.amountTomans ?: 0},${item.balanceTomans ?: 0},\"${item.cardNumber ?: ""}\",\"${item.trackingNumber ?: ""}\",\"$dateStr\"")
-                                }
-                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/csv"
-                                    putExtra(Intent.EXTRA_SUBJECT, "گزارش مالی پیامک‌ها - Global SMS")
-                                    putExtra(Intent.EXTRA_TEXT, csvBuilder.toString())
-                                }
-                                context.startActivity(Intent.createChooser(sendIntent, "اشتراک‌گذاری گزارش مالی اکسل/CSV"))
+                                val csvFile = FinancialExpenseAnalyticsEngine.exportTransactionsToCsv(context, filteredAnalyses)
+                                val shareIntent = FinancialExpenseAnalyticsEngine.createShareCsvIntent(context, csvFile)
+                                context.startActivity(Intent.createChooser(shareIntent, "اشتراک‌گذاری فایل رسمی اکسل تراکنش‌ها"))
                             } catch (e: Exception) {
-                                Toast.makeText(context, "خطا در خروجی گزارش", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "خطا در استخراج فایل اکسل", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.testTag("export_financial_csv_button")
@@ -295,6 +280,22 @@ fun BankDashboardScreen(
                             expenseTomans = totalExpenseTomans,
                             bankAnalyses = bankAnalyses,
                             usePersianDigits = usePersianDigits
+                        )
+                    }
+
+                    item {
+                        MonthlyBudgetTargetCard(
+                            bankAnalyses = bankAnalyses,
+                            usePersianDigits = usePersianDigits,
+                            onExportCsv = {
+                                try {
+                                    val csvFile = FinancialExpenseAnalyticsEngine.exportTransactionsToCsv(context, filteredAnalyses)
+                                    val shareIntent = FinancialExpenseAnalyticsEngine.createShareCsvIntent(context, csvFile)
+                                    context.startActivity(Intent.createChooser(shareIntent, "اشتراک‌گذاری گزارش اکسل تراکنش‌ها"))
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "خطا در خروجی فایل اکسل", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         )
                     }
                 }
@@ -796,6 +797,141 @@ fun FinancialChartsCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun MonthlyBudgetTargetCard(
+    bankAnalyses: List<BankSmsAnalysis>,
+    usePersianDigits: Boolean,
+    onExportCsv: () -> Unit
+) {
+    var budgetTargetTomans by remember { mutableLongStateOf(20_000_000L) }
+    val summary = remember(bankAnalyses, budgetTargetTomans) {
+        FinancialExpenseAnalyticsEngine.calculateMonthlySummary(bankAnalyses, budgetTargetTomans)
+    }
+
+    val progressColor = when {
+        summary.isOverBudget -> Color(0xFFC62828)
+        summary.budgetConsumptionPercentage > 75f -> Color(0xFFEF6C00)
+        else -> Color(0xFF2E7D32)
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+        modifier = Modifier.fillMaxWidth().testTag("monthly_budget_target_card")
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "هدف‌گذاری بودجه و سقف مخارج ماهانه",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = progressColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = if (summary.isOverBudget) "عبور از سقف بودجه" else "در محدوده بودجه",
+                        color = progressColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            // Target selector buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf(10_000_000L, 20_000_000L, 50_000_000L).forEach { amount ->
+                    val isSelected = budgetTargetTomans == amount
+                    val label = "${amount / 1_000_000} میلیون"
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { budgetTargetTomans = amount },
+                        label = {
+                            Text(
+                                text = if (usePersianDigits) PersianUtils.toPersianDigits(label) else label,
+                                fontSize = 11.sp
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Progress Indicator
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "مصرف بودجه: ${summary.formattedExpense}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    val pct = summary.budgetConsumptionPercentage.toInt()
+                    Text(
+                        text = if (usePersianDigits) PersianUtils.toPersianDigits("$pct%") else "$pct%",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = progressColor
+                    )
+                }
+
+                LinearProgressIndicator(
+                    progress = { summary.budgetConsumptionPercentage / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(5.dp)),
+                    color = progressColor,
+                    trackColor = MaterialTheme.colorScheme.surface
+                )
+            }
+
+            val topBank = summary.topSpendingBank
+            if (topBank != null) {
+                Text(
+                    text = "بیشترین حجم برداشت مربوط به: $topBank",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Export to CSV button
+            OutlinedButton(
+                onClick = onExportCsv,
+                modifier = Modifier.fillMaxWidth().testTag("export_excel_button")
+            ) {
+                Icon(Icons.Default.TableChart, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("دریافت فایل اکسل کامل تراکنش‌ها (CSV استاندارد)")
             }
         }
     }

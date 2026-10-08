@@ -30,8 +30,10 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import com.global.sms.core.postal.PostalTrackingEngine
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Quickreply
@@ -630,6 +632,33 @@ fun MessageBubble(
                         Text(
                             "کپی کد تایید: ${if (usePersianDigits) PersianUtils.toPersianDigits(otp) else otp}",
                             fontFamily = customFontFamily
+                        )
+                    }
+                }
+
+                // Postal Tracking Action Button if postal tracking code detected
+                val postalInfo = remember(message.body) {
+                    PostalTrackingEngine.extractPostalTracking(message.body)
+                }
+                if (postalInfo != null) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    Spacer(modifier = Modifier.height(6.dp))
+                    androidx.compose.material3.FilledTonalButton(
+                        onClick = {
+                            val intent = PostalTrackingEngine.createTrackingIntent(postalInfo.trackingCode)
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                            .testTag("postal_tracking_button_${message.id}")
+                    ) {
+                        Icon(Icons.Default.LocalShipping, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "رهگیری بسته در سامانه شرکت ملی پست",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
